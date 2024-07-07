@@ -10,6 +10,8 @@ const Chips = ({ flexValue }: { flexValue: number }) => {
     );
   };
 
+
+
 // const styles = {
 
 // }
