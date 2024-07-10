@@ -3,27 +3,30 @@ import { View, Text, StyleSheet } from "react-native"; // Import StyleSheet from
 import Drake from "./Drake";
 
 const Header = ({ flexValue }: { flexValue: number }) => {
-  return (
-    <View style={[styles.content, { flex: flexValue } ]}>
-        <Drake/>
-    </View>
-  );
-};
-
-const styles = {
-    content: {
-        width: '90%',
-        height: '90%',
-        borderRadius: '55',
-        overflow: 'hidden',
-        alignSelf: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'black',
+    return (
+        <View style={[styles.frame, { flex: flexValue }]}>
+            <Text style={styles.header}>thinking about you</Text>
+        </View>
+    );
+  };
+  
+  const styles = {
+    frame: {
+      backgroundColor: 'green',
+      height: '90%',
+      width: '90%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      alignSelf: 'center',
+      borderRadius: '100%',
+    },
+    header: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      justifyContent: 'center',
+      color: 'white',
     }
-}
-
-// const styles = {
-
-// }
+  }
 
 export default Header;

@@ -44,22 +44,22 @@ export const Colors = {
 export const themes = {
   red: {
     light: {
-      backgroundColor: '#ffcccb',
-      textColor: '#b22222',
+        backgroundColor: '#ffcccb',
+        textColor: '#b22222',
     },
     dark: {
-      backgroundColor: '#8b0000',
-      textColor: '#ffcccb',
+        backgroundColor: '#8b0000',
+        textColor: '#ffcccb',
     },
   },
   blue: {
     light: {
-      backgroundColor: '#add8e6',
-      textColor: '#00008b',
+        backgroundColor: '#add8e6',
+        textColor: '#00008b',
     },
     dark: {
-      backgroundColor: '#00008b',
-      textColor: '#add8e6',
+        backgroundColor: '#00008b',
+        textColor: '#add8e6',
     },
   },
 };
