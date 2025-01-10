@@ -8,10 +8,13 @@
 import SwiftUI
 
 @main
-struct ofthedayApp: App {
+struct OfTheDayApp: App {
+    @StateObject private var viewModel = ODTViewModel()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(viewModel)
         }
     }
 }

@@ -1,0 +1,37 @@
+# macOS metadata
+.DS_Store
+
+# Xcode files
+*.xcuserdatad
+*.xcuserdata
+*.xccheckout
+*.xcscmblueprint
+
+# Generated files
+DerivedData/
+build/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Swift Package Manager
+.build/
+Package.resolved
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+
+# Environment and secrets
+*.xcconfig
+.env
+
+# Temporary files
+*.swp
+*.lock
+
