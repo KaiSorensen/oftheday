@@ -1,94 +1,128 @@
 import SwiftUI
+import Combine
 
 // MARK: - Models
 
 /// Represents a single item in a list (header + body + optional image)
-struct ODTItem: Identifiable {
-    let id = UUID()
+struct OTDItem: Identifiable, Codable {
+    var id = UUID()
     var header: String
     var body: String
-    var imageName: String?  // If you want to support an image (for demonstration)
+    var imageName: String?  // For future image support
 }
 
 /// Represents a list of "Of The Day" items, with user settings
-struct ODTList: Identifiable {
-    let id = UUID()
+struct OTDList: Identifiable, Codable {
+    var id = UUID()
     var title: String
-    var items: [ODTItem]
+    var items: [OTDItem]
     
     // User settings
-    var isActive: Bool = true
     var isShuffled: Bool = false
 }
 
-/// ViewModel to manage an array of ODTLists
-class ODTViewModel: ObservableObject {
-    @Published var lists: [ODTList] = []
+/// ViewModel to manage an array of OTDLists
+class OTDViewModel: ObservableObject {
+    /// The lists of items
+    @Published var lists: [OTDList] = [] {
+        didSet {
+            saveLists()
+        }
+    }
     
     /// Tracks which list is selected (by index in the `lists` array).
     @Published var selectedListIndex: Int = 0
     
+    private var cancellables: Set<AnyCancellable> = []
+    
     init() {
-        // Sample data for demonstration
+        loadLists()  // Attempt to load from storage
+    }
+    
+    /// Loads the lists from UserDefaults (if present)
+    private func loadLists() {
+        if let data = UserDefaults.standard.data(forKey: "OTDLists") {
+            do {
+                let decoded = try JSONDecoder().decode([OTDList].self, from: data)
+                self.lists = decoded
+            } catch {
+                print("Error decoding OTDLists from UserDefaults: \(error)")
+                loadSampleData()
+            }
+        } else {
+            // If nothing saved, load sample data
+            loadSampleData()
+        }
+    }
+    
+    /// Saves the lists to UserDefaults
+    private func saveLists() {
+        do {
+            let encodedData = try JSONEncoder().encode(lists)
+            UserDefaults.standard.set(encodedData, forKey: "OTDLists")
+        } catch {
+            print("Error encoding OTDLists: \(error)")
+        }
+    }
+    
+    /// Loads sample data if no saved data is found
+    private func loadSampleData() {
         self.lists = [
-            ODTList(
+            OTDList(
                 title: "Vocabulary",
                 items: [
-                    ODTItem(header: "Ubiquitous", body: "Appearing or found everywhere"),
-                    ODTItem(header: "Obfuscate", body: "To make obscure or unclear")
+                    OTDItem(header: "Ubiquitous", body: "Appearing or found everywhere"),
+                    OTDItem(header: "Obfuscate", body: "To make obscure or unclear")
                 ]
             ),
-            ODTList(
+            OTDList(
                 title: "Historical People",
                 items: [
-                    ODTItem(header: "Marie Curie", body: "Pioneer in radioactivity research"),
-                    ODTItem(header: "Nelson Mandela", body: "Anti-apartheid revolutionary, President of South Africa")
+                    OTDItem(header: "Marie Curie", body: "Pioneer in radioactivity research"),
+                    OTDItem(header: "Nelson Mandela", body: "Anti-apartheid revolutionary, President of South Africa")
                 ]
             ),
-            ODTList(
+            OTDList(
                 title: "Pictures",
                 items: [
-                    ODTItem(header: "Sunset", body: "A beautiful sunset picture", imageName: "sunset-sample"),
-                    ODTItem(header: "Mountains", body: "Majestic mountain view", imageName: "mountain-sample")
+                    OTDItem(header: "Sunset", body: "A beautiful sunset picture", imageName: "sunset-sample"),
+                    OTDItem(header: "Mountains", body: "Majestic mountain view", imageName: "mountain-sample")
                 ]
             )
         ]
     }
     
     /// The currently selected list
-    var currentList: ODTList {
-        lists[selectedListIndex]
+    var currentList: OTDList {
+        guard lists.indices.contains(selectedListIndex) else {
+            // Fallback if index is out of range
+            return OTDList(title: "Empty", items: [])
+        }
+        return lists[selectedListIndex]
     }
     
     /// Get the item to display from the current list
-    var currentItem: ODTItem {
+    var currentItem: OTDItem {
         let list = currentList
         
         // If list is shuffled, pick a random item each time
         // Alternatively, you can track an index to rotate daily
-        if list.isShuffled {
-            return list.items.randomElement() ?? ODTItem(header: "Empty", body: "No items")
+        if list.isShuffled, !list.items.isEmpty {
+            return list.items.randomElement()!
         } else {
-            // For now, we'll just show the first item
-            // In a real app, you'd have logic to cycle through or pick the daily item
-            return list.items.first ?? ODTItem(header: "Empty", body: "No items")
+            // For now, just show the first item
+            return list.items.first ?? OTDItem(header: "Empty", body: "No items")
         }
     }
     
     /// Toggle shuffle for the currently selected list
     func toggleShuffle() {
+        guard lists.indices.contains(selectedListIndex) else { return }
         lists[selectedListIndex].isShuffled.toggle()
-    }
-    
-    /// Toggle active status for the currently selected list
-    func toggleActive() {
-        lists[selectedListIndex].isActive.toggle()
     }
     
     /// Reshuffle: If you track a random index, you might want to forcibly change it here
     func reshuffle() {
-        // Example action: do nothing here except print
-        // You might reset some daily random pick, etc.
         print("Reshuffle pressed for list: \(currentList.title)")
     }
 }
@@ -97,7 +131,7 @@ class ODTViewModel: ObservableObject {
 // MARK: - Main Content View
 
 struct ContentView: View {
-    @EnvironmentObject var viewModel: ODTViewModel
+    @EnvironmentObject var viewModel: OTDViewModel
     
     // State to show/hide overlays
     @State private var showWidgetSettings = false
@@ -133,10 +167,13 @@ struct ContentView: View {
 // MARK: - Home View
 
 struct HomeView: View {
-    @EnvironmentObject var viewModel: ODTViewModel
+    @EnvironmentObject var viewModel: OTDViewModel
     
     @Binding var showWidgetSettings: Bool
     @Binding var showMainMenu: Bool
+    
+    // New state for showing the "Edit List" modal
+    @State private var showEditListSheet = false
     
     var body: some View {
         ZStack {
@@ -172,9 +209,34 @@ struct HomeView: View {
                 ChipsRowView(selectedIndex: $viewModel.selectedListIndex, lists: viewModel.lists)
                     .padding(.vertical, 8)
                 
-                // Toggle row for shuffle, active, and reshuffle
-                ToggleRowView()
-                    .padding(.bottom, 8)
+                // Toggle row for shuffle, [REPLACED active with edit]
+                HStack(spacing: 20) {
+                    // Shuffle Toggle
+                    Button(action: {
+                        viewModel.toggleShuffle()
+                    }) {
+                        Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
+                            .font(.title2)
+                    }
+                    
+                    // Reshuffle Button
+                    Button(action: {
+                        viewModel.reshuffle()
+                    }) {
+                        Image(systemName: "arrow.clockwise.circle")
+                            .font(.title2)
+                    }
+                    
+                    // Edit button (replacing the "active" button)
+                    Button(action: {
+                        showEditListSheet = true
+                    }) {
+                        // Hammer icon or another build tool icon:
+                        Image(systemName: "hammer.circle")
+                            .font(.title2)
+                    }
+                }
+                .padding(.bottom, 8)
                 
                 // Spacer
                 Spacer()
@@ -185,6 +247,11 @@ struct HomeView: View {
                 Spacer()
             }
         }
+        // Present the edit list sheet
+        .sheet(isPresented: $showEditListSheet) {
+            EditListView(isPresented: $showEditListSheet, listIndex: viewModel.selectedListIndex)
+                .environmentObject(viewModel)
+        }
         .preferredColorScheme(.none) // Let system handle dark/light mode for now
     }
 }
@@ -193,7 +260,7 @@ struct HomeView: View {
 
 struct ChipsRowView: View {
     @Binding var selectedIndex: Int
-    let lists: [ODTList]
+    let lists: [OTDList]
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -220,44 +287,10 @@ struct ChipsRowView: View {
     }
 }
 
-// MARK: - Toggle Row View
-
-struct ToggleRowView: View {
-    @EnvironmentObject var viewModel: ODTViewModel
-    
-    var body: some View {
-        HStack(spacing: 20) {
-            // Shuffle Toggle
-            Button(action: {
-                viewModel.toggleShuffle()
-            }) {
-                Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
-                    .font(.title2)
-            }
-            
-            // Reshuffle Button
-            Button(action: {
-                viewModel.reshuffle()
-            }) {
-                Image(systemName: "arrow.clockwise.circle")
-                    .font(.title2)
-            }
-            
-            // Active Toggle
-            Button(action: {
-                viewModel.toggleActive()
-            }) {
-                Image(systemName: viewModel.currentList.isActive ? "checkmark.circle.fill" : "checkmark.circle")
-                    .font(.title2)
-            }
-        }
-    }
-}
-
 // MARK: - Card View
 
 struct CardView: View {
-    let item: ODTItem
+    let item: OTDItem
     
     var body: some View {
         VStack(spacing: 16) {
@@ -365,6 +398,125 @@ struct MainMenuOverlay: View {
             .background(Color(UIColor.systemBackground))
             .cornerRadius(16)
             .shadow(radius: 10)
+        }
+    }
+}
+
+
+// MARK: - Edit List View
+
+/// A modal view (sheet) that shows all items in the selected list.
+/// You can add new items, delete items, and tap to edit any item.
+struct EditListView: View {
+    @EnvironmentObject var viewModel: OTDViewModel
+    
+    /// Whether this sheet is presented
+    @Binding var isPresented: Bool
+    
+    /// The index of the list we are editing
+    var listIndex: Int
+    
+    // State to manage presenting the edit for a specific item
+    @State private var showEditItem = false
+    @State private var editingIndex: Int? = nil
+    
+    var body: some View {
+        NavigationView {
+            if listIndex < viewModel.lists.count {
+                let listTitle = viewModel.lists[listIndex].title
+                
+                List {
+                    ForEach(Array(viewModel.lists[listIndex].items.enumerated()), id: \.1.id) { index, item in
+                        // Each row: tap to edit
+                        Button(action: {
+                            editingIndex = index
+                            showEditItem = true
+                        }) {
+                            VStack(alignment: .leading) {
+                                Text(item.header).bold()
+                                if !item.body.isEmpty {
+                                    Text(item.body)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                    }
+                    .onDelete { offsets in
+                        viewModel.lists[listIndex].items.remove(atOffsets: offsets)
+                    }
+                }
+                .navigationTitle("Edit \(listTitle)")
+                .navigationBarTitleDisplayMode(.inline)
+                .navigationBarItems(
+                    leading: Button(action: {
+                        // Create a blank item and edit it
+                        let newItem = OTDItem(header: "New Item", body: "")
+                        viewModel.lists[listIndex].items.append(newItem)
+                        editingIndex = viewModel.lists[listIndex].items.count - 1
+                        showEditItem = true
+                    }) {
+                        Image(systemName: "plus")
+                    },
+                    trailing: Button(action: {
+                        isPresented = false
+                    }) {
+                        Image(systemName: "xmark")
+                    }
+                )
+                .sheet(isPresented: $showEditItem) {
+                    if let index = editingIndex {
+                        EditItemView(
+                            item: Binding(
+                                get: { viewModel.lists[listIndex].items[index] },
+                                set: { viewModel.lists[listIndex].items[index] = $0 }
+                            )
+                        )
+                    }
+                }
+            } else {
+                Text("Invalid list index.")
+                    .padding()
+                    .navigationBarItems(trailing: Button("Close") {
+                        isPresented = false
+                    })
+            }
+        }
+    }
+}
+
+// MARK: - Edit Item View
+
+/// A simple view to edit one OTDItem (title + body).
+/// For now, we won't worry about images; that can come later.
+struct EditItemView: View {
+    @Binding var item: OTDItem
+    
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Title")) {
+                    TextField("Enter title", text: $item.header)
+                }
+                
+                Section(header: Text("Body")) {
+                    TextEditor(text: $item.body)
+                        .frame(minHeight: 120)
+                }
+            }
+            .navigationTitle("Edit Item")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                trailing: Button(action: {
+                    // Save changes and dismiss
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Image(systemName: "checkmark")
+                }
+            )
         }
     }
 }

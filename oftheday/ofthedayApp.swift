@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct OfTheDayApp: App {
-    @StateObject private var viewModel = ODTViewModel()
+    @StateObject private var viewModel = OTDViewModel()
     
     var body: some Scene {
         WindowGroup {
