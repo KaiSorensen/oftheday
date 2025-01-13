@@ -46,7 +46,7 @@ struct HomeView: View {
                 .padding(.top, 8)
                 
                 // Chips row
-                ChipsRowView(selectedIndex: $viewModel.selectedListIndex, lists: viewModel.lists)
+                ChipsRowView(selectedIndex: $viewModel.allLists.currentList, lists: viewModel.allLists.lists)
                     .padding(.vertical, 8)
                 
                 // Shuffle / Reshuffle / Edit row
@@ -123,7 +123,7 @@ struct HomeView: View {
         }
         // Present the edit list sheet
         .sheet(isPresented: $showEditListSheet) {
-            EditListView(isPresented: $showEditListSheet, listIndex: viewModel.selectedListIndex)
+            EditListView(allLists: $viewModel.allLists, isPresented: $showEditListSheet)
                 .environmentObject(viewModel)
         }
         .preferredColorScheme(.none) // Let the system handle dark/light

@@ -1,43 +1,60 @@
-//
-//  EditItemView.swift
-//  oftheday
-//
-//  Created by user268370 on 1/12/25.
-//
-
 import SwiftUI
 
-// MARK: - Edit Item View
-
-/// A simple view to edit one OTDItem (title + body).
-/// For now, we won't worry about images; that can come later.
 struct EditItemView: View {
+    /// The OTDItem we’re editing or creating
     @Binding var item: OTDItem
     
+    /// Indicates if the user confirmed the action
+    @Binding var didConfirm: Bool
+    
+    /// For dismissing this page (sheet)
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
         NavigationView {
             Form {
+                // Optional Header
                 Section(header: Text("Title")) {
-                    TextField("Enter title", text: $item.header)
+                    TextField("Enter title",
+                              text: Binding(
+                                get: { item.header ?? "" },
+                                set: { item.header = $0.isEmpty ? nil : $0 }
+                              )
+                    )
                 }
                 
+                // Optional Body
                 Section(header: Text("Body")) {
-                    TextEditor(text: $item.body)
-                        .frame(minHeight: 120)
+                    TextEditor(text: Binding(
+                        get: { item.body ?? "" },
+                        set: { item.body = $0.isEmpty ? nil : $0 }
+                    ))
+                    .frame(minHeight: 120)
+                }
+                
+                // Optional Image Name (for future image support)
+                Section(header: Text("Image Name")) {
+                    TextField("Enter image name",
+                              text: Binding(
+                                get: { item.imageName ?? "" },
+                                set: { item.imageName = $0.isEmpty ? nil : $0 }
+                              )
+                    )
                 }
             }
             .navigationTitle("Edit Item")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                trailing: Button(action: {
-                    // Save changes and dismiss
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "checkmark")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        // User pressed confirm
+                        didConfirm = true
+                        presentationMode.wrappedValue.dismiss()
+                    } label: {
+                        Image(systemName: "checkmark")
+                    }
                 }
-            )
+            }
         }
     }
 }

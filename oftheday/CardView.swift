@@ -22,7 +22,7 @@ struct CardView: View {
             VStack {
                 // Title in top-left
                 HStack {
-                    Text(item.header)
+                    Text(item.header ?? "")
                         .font(.system(size: 40, weight: .bold))
                         .foregroundColor(.primary)
                         .padding(.top, 16)
@@ -34,7 +34,7 @@ struct CardView: View {
                 Spacer()
                 
                 // Body in the center
-                Text(item.body)
+                Text(item.body ?? "")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .foregroundColor(.primary)
