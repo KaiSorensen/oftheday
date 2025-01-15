@@ -58,13 +58,6 @@ struct HomeView: View {
                             .font(.title2)
                     }
                     
-                    Button(action: {
-                        viewModel.reshuffle()
-                    }) {
-                        Image(systemName: "arrow.clockwise.circle")
-                            .font(.title2)
-                    }
-                    
                     // Edit button
                     Button(action: {
                         showEditListSheet = true
@@ -123,8 +116,7 @@ struct HomeView: View {
         }
         // Present the edit list sheet
         .sheet(isPresented: $showEditListSheet) {
-            EditListView(allLists: $viewModel.allLists, isPresented: $showEditListSheet)
-                .environmentObject(viewModel)
+            EditListView(viewModel: viewModel, isPresented: $showEditListSheet)
         }
         .preferredColorScheme(.none) // Let the system handle dark/light
     }

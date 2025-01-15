@@ -1,134 +1,163 @@
 import SwiftUI
 
 struct EditListView: View {
-    /// The entire “Of The Day” data model, passed by binding so we can edit in-place.
-    @Binding var allLists: OTDAllLists
-    
-    /// Whether this edit view is visible/presented.
+    @ObservedObject var viewModel: OTDViewModel
     @Binding var isPresented: Bool
     
-    /// Controls whether we’re currently showing an item editor (sheet).
+    // Controls whether we’re currently showing the sheet for creating/editing an item
     @State private var showEditItem = false
     
-    /// Indicates if the current sheet is for adding a new item.
+    // Indicates if the current sheet is for adding a new item.
     @State private var isAddingNewItem = false
     
-    /// Temporary item for adding a new entry.
+    // Temporary item for adding a new entry.
     @State private var newItem = OTDItem(header: nil, body: nil, imageName: nil)
     
-    /// The index of the item we’re currently editing (if any).
-    @State private var editingIndex: Int? = nil
+    // The index (in itemOrder) we’re currently editing (if any).
+    @State private var editingOrderIndex: Int? = nil
     
-    /// Temporary item for editing an existing entry.
+    // Temporary item for editing an existing entry.
     @State private var editingItem = OTDItem(header: nil, body: nil, imageName: nil)
     
-    /// Tracks if the user confirmed the action in the sheet.
+    // Tracks if the user confirmed in the sheet.
     @State private var didConfirm = false
-
-    // Convenience: easy access to the current list (if it exists).
-    private var currentListBinding: Binding<OTDList>? {
-        guard allLists.lists.indices.contains(allLists.currentList) else {
-            return nil
-        }
-        return Binding<OTDList>(
-            get: {
-                allLists.lists[allLists.currentList]
-            },
-            set: {
-                allLists.lists[allLists.currentList] = $0
-            }
-        )
-    }
-
+    
     var body: some View {
         NavigationView {
-            if let currentList = currentListBinding {
+            if viewModel.allLists.lists.indices.contains(viewModel.allLists.currentList) {
+                let currentList = viewModel.allLists.lists[viewModel.allLists.currentList]
+                
                 List {
-                    // Enumerate the items in the current list
-                    ForEach(Array(currentList.wrappedValue.items.enumerated()), id: \.element.id) { (index, item) in
-                        Button {
-                            // Begin editing an existing item
-                            editingIndex = index
-                            editingItem = currentList.wrappedValue.items[index]
-                            didConfirm = false
-                            showEditItem = true
-                        } label: {
-                            VStack(alignment: .leading) {
-                                Text(item.header?.isEmpty == false ? item.header! : "Untitled")
-                                    .bold()
-                                    .foregroundColor(
-                                        (item.header?.isEmpty ?? true) ? .secondary : .primary
-                                    )
-                                if let body = item.body, !body.isEmpty {
-                                    Text(body)
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                } else {
-                                    Text("No description")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
+                    // We show items in the order determined by currentList.itemOrder:
+                    ForEach(Array(currentList.itemOrder.enumerated()), id: \.element) { (orderIndex, itemIndex) in
+                        // Safety check:
+                        if currentList.items.indices.contains(itemIndex) {
+                            let item = currentList.items[itemIndex]
+                            Button {
+                                // Begin editing
+                                editingOrderIndex = orderIndex
+                                editingItem = item
+                                didConfirm = false
+                                showEditItem = true
+                                isAddingNewItem = false
+                            } label: {
+                                VStack(alignment: .leading) {
+                                    Text(item.header?.isEmpty == false
+                                         ? item.header!
+                                         : "Untitled")
+                                        .bold()
+                                        .foregroundColor(
+                                            (item.header?.isEmpty ?? true)
+                                            ? .secondary
+                                            : .primary
+                                        )
+                                    if let body = item.body, !body.isEmpty {
+                                        Text(body)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    } else {
+                                        Text("No description")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    }
                                 }
                             }
                         }
                     }
                     .onDelete { offsets in
-                        // Remove the items at these offsets
-                        currentList.wrappedValue.items.remove(atOffsets: offsets)
+                        // offsets is for the *displayed* rows, which correspond
+                        // to currentList.itemOrder.enumerated()
+                        for offset in offsets {
+                            // Call removeItem(orderIndex:) on each offset
+                            viewModel.removeItem(orderIndex: offset)
+                        }
+                    }
+                    .onMove { source, destination in
+                        // Reorder the *itemOrder* array
+                        viewModel.moveItem(source: source, destination: destination)
+                       
                     }
                 }
-                .navigationTitle("Edit \(currentList.wrappedValue.title)")
+                .navigationTitle("Edit \(currentList.title)")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    // The plus sign
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            // Initiate adding a new item
-                            isAddingNewItem = true
-                            newItem = OTDItem(header: nil, body: nil, imageName: nil)
-                            didConfirm = false
-                            showEditItem = true
-                        } label: {
-                            Image(systemName: "plus")
+                        HStack {
+                            Button {
+                                // Initiate adding a new item
+                                isAddingNewItem = true
+                                newItem = OTDItem(header: nil, body: nil, imageName: nil)
+                                didConfirm = false
+                                showEditItem = true
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                            
+                            // Shuffle toggle button to the right of the plus
+                            Button {
+                                viewModel.toggleShuffle()
+                            } label: {
+                                    Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
+                                        .font(.title2)
+                            }
                         }
                     }
                     
+                    // “Done” or “Close” button
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
-                            // Close the entire EditListView
                             isPresented = false
                         } label: {
                             Image(systemName: "xmark")
                         }
                     }
+                    
+                    // EditButton for SwiftUI’s .onMove
+                    ToolbarItem(placement: .bottomBar) {
+                        EditButton()
+                    }
                 }
                 // Show the EditItemView as a sheet
                 .sheet(isPresented: $showEditItem, onDismiss: {
                     if isAddingNewItem {
-                        // Handle adding a new item
+                        // If user confirmed, and item has anything in it, call addItem
                         if didConfirm,
-                           !(newItem.header == nil && newItem.body == nil && newItem.imageName == nil) {
-                            // Only append if the user confirmed and at least one field is not nil
-                            currentList.wrappedValue.items.append(newItem)
+                           !(newItem.header == nil
+                             && newItem.body == nil
+                             && newItem.imageName == nil) {
+                            viewModel.addItem(item: newItem)
                         }
                         // Reset add-related states
                         isAddingNewItem = false
                         newItem = OTDItem(header: nil, body: nil, imageName: nil)
                         didConfirm = false
-                    } else if let index = editingIndex {
-                        // Handle editing an existing item
+                        
+                    } else if let oIndex = editingOrderIndex {
                         if didConfirm {
-                            if currentList.wrappedValue.items.indices.contains(index) {
-                                currentList.wrappedValue.items[index] = editingItem
-                                let editedItem = currentList.wrappedValue.items[index]
-                                if editedItem.header == nil && editedItem.body == nil && editedItem.imageName == nil {
-                                    // Remove the item since it's empty
-                                    currentList.wrappedValue.items.remove(at: index)
+                            // Overwrite the item, but if it’s "empty", remove it
+                            let currListIndex = viewModel.allLists.currentList
+                            // Safety check
+                            if viewModel.allLists.lists[currListIndex].itemOrder.indices.contains(oIndex) {
+                                let itemIndex = viewModel.allLists.lists[currListIndex].itemOrder[oIndex]
+                                
+                                // If still in range, update or remove
+                                if viewModel.allLists.lists[currListIndex].items.indices.contains(itemIndex) {
+                                    viewModel.allLists.lists[currListIndex].items[itemIndex] = editingItem
+                                    let edited = viewModel.allLists.lists[currListIndex].items[itemIndex]
+                                    if  edited.header == nil &&
+                                        edited.body == nil &&
+                                        edited.imageName == nil {
+                                        // remove it
+                                        viewModel.removeItem(orderIndex: oIndex)
+                                    }
                                 }
                             }
                         }
                         // Reset edit-related states
-                        editingIndex = nil
+                        editingOrderIndex = nil
                         editingItem = OTDItem(header: nil, body: nil, imageName: nil)
                         didConfirm = false
                     }
@@ -136,12 +165,12 @@ struct EditListView: View {
                     if isAddingNewItem {
                         // Present EditItemView for adding a new item
                         EditItemView(item: $newItem, didConfirm: $didConfirm)
-                    } else if let index = editingIndex,
-                              currentList.wrappedValue.items.indices.contains(index) {
+                    } else if let oIndex = editingOrderIndex,
+                              currentList.itemOrder.indices.contains(oIndex) {
                         // Present EditItemView for editing an existing item
                         EditItemView(item: $editingItem, didConfirm: $didConfirm)
                     } else {
-                        // Fallback view if something goes wrong
+                        // Fallback
                         Text("Unable to edit item.")
                             .foregroundColor(.secondary)
                             .padding()

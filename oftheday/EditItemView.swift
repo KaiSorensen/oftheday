@@ -32,15 +32,6 @@ struct EditItemView: View {
                     .frame(minHeight: 120)
                 }
                 
-                // Optional Image Name (for future image support)
-                Section(header: Text("Image Name")) {
-                    TextField("Enter image name",
-                              text: Binding(
-                                get: { item.imageName ?? "" },
-                                set: { item.imageName = $0.isEmpty ? nil : $0 }
-                              )
-                    )
-                }
             }
             .navigationTitle("Edit Item")
             .navigationBarTitleDisplayMode(.inline)
