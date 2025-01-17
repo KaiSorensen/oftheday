@@ -7,6 +7,15 @@
 
 import SwiftUI
 
+enum ActiveSheet: Identifiable {
+    case listNotification
+    case editList
+    
+    var id: Int {
+        hashValue
+    }
+}
+
 // MARK: - Home View
 
 struct HomeView: View {
@@ -15,7 +24,7 @@ struct HomeView: View {
     @Binding var showWidgetSettings: Bool
     @Binding var showMainMenu: Bool
     
-    @State private var showEditListSheet = false
+    @State private var activeSheet: ActiveSheet?
     
     var body: some View {
         ZStack {
@@ -49,8 +58,9 @@ struct HomeView: View {
                 ChipsRowView(selectedIndex: $viewModel.allLists.currentList, lists: viewModel.allLists.lists)
                     .padding(.vertical, 8)
                 
-                // Shuffle / Reshuffle / Edit row
+                // list buttons
                 HStack(spacing: 20) {
+                    // shuffle button
                     Button(action: {
                         viewModel.toggleShuffle()
                     }) {
@@ -58,9 +68,16 @@ struct HomeView: View {
                             .font(.title2)
                     }
                     
+                    // notification button
+                    Button(action: {
+                        activeSheet = .listNotification
+                    }) {
+                        Image(systemName: viewModel.currentList.notificationsOn ? "bell.circle.fill" : "bell.circle")
+                    }
+                    
                     // Edit button
                     Button(action: {
-                        showEditListSheet = true
+                        activeSheet = .editList
                     }) {
                         Image(systemName: "hammer.circle")
                             .font(.title2)
@@ -115,8 +132,15 @@ struct HomeView: View {
             }
         }
         // Present the edit list sheet
-        .sheet(isPresented: $showEditListSheet) {
-            EditListView(viewModel: viewModel, isPresented: $showEditListSheet)
+        .sheet(item: $activeSheet) {
+            sheet in switch sheet {
+                
+                case .editList:
+                    EditListView(viewModel: viewModel, activeSheet: $activeSheet)
+                    
+                case .listNotification:
+                    ListNotificationView(viewModel: viewModel, activeSheet: $activeSheet)
+            }
         }
         .preferredColorScheme(.none) // Let the system handle dark/light
     }

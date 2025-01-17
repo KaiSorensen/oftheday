@@ -35,6 +35,7 @@ struct OTDList: Identifiable, Codable {
 struct OTDAllLists: Codable {
     var lists: [OTDList]
     var currentList: Int = 0
+    var lastUpdate: Date
 }
 
 /// ViewModel to manage an array of OTDLists
@@ -46,12 +47,8 @@ class OTDViewModel: ObservableObject {
         }
     }
     
-    ///  Track which list we're on
-    @Published var selectedListIndex: Int
-    
     init() {
-        self.allLists = OTDAllLists(lists: [], currentList: 0)
-        self.selectedListIndex = 0
+        self.allLists = OTDAllLists(lists: [], currentList: 0, lastUpdate: Date())
         
         loadLists() // Attempt to load from storage
     }
@@ -62,6 +59,14 @@ class OTDViewModel: ObservableObject {
             do {
                 let decoded = try JSONDecoder().decode(OTDAllLists.self, from: data)
                 self.allLists = decoded
+                
+                //update the current items in case multiple days have passed, this might not be necessary upon midnight incrementations
+                let daysPassed = 0
+                for i in 0..<allLists.lists.count {
+                    if (allLists.lists[i].items.count > 0) {
+                        allLists.lists[i].currentItem = (allLists.lists[i].currentItem + daysPassed) % allLists.lists[i].items.count
+                    }
+                }
             } catch {
                 print("Error decoding OTDLists from UserDefaults: \(error)")
                 loadDefaults()
@@ -115,7 +120,8 @@ class OTDViewModel: ObservableObject {
                     currentItem: 0
                 )
             ],
-            currentList: 0
+            currentList: 0,
+            lastUpdate: Date()
         )
     }
     
@@ -135,6 +141,10 @@ class OTDViewModel: ObservableObject {
         // For now, let’s just honor the selectedItemIndex:
         if (list.currentItem < 0 || list.currentItem >= list.items.count) {list.currentItem = 0} // I'm doing this for debugging
         return list.items[list.itemOrder[list.currentItem]]
+    }
+    
+    func updateCurrents() {
+        
     }
     
     func addItem(item: OTDItem) {

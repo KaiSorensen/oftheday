@@ -2,7 +2,7 @@ import SwiftUI
 
 struct EditListView: View {
     @ObservedObject var viewModel: OTDViewModel
-    @Binding var isPresented: Bool
+    @Binding var activeSheet: ActiveSheet?
     
     // Controls whether we’re currently showing the sheet for creating/editing an item
     @State private var showEditItem = false
@@ -109,7 +109,7 @@ struct EditListView: View {
                     // “Done” or “Close” button
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
-                            isPresented = false
+                            activeSheet = nil
                         } label: {
                             Image(systemName: "xmark")
                         }
@@ -165,15 +165,9 @@ struct EditListView: View {
                     if isAddingNewItem {
                         // Present EditItemView for adding a new item
                         EditItemView(item: $newItem, didConfirm: $didConfirm)
-                    } else if let oIndex = editingOrderIndex,
-                              currentList.itemOrder.indices.contains(oIndex) {
+                    } else {
                         // Present EditItemView for editing an existing item
                         EditItemView(item: $editingItem, didConfirm: $didConfirm)
-                    } else {
-                        // Fallback
-                        Text("Unable to edit item.")
-                            .foregroundColor(.secondary)
-                            .padding()
                     }
                 }
             } else {
@@ -186,7 +180,7 @@ struct EditListView: View {
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button {
-                                isPresented = false
+                                activeSheet = nil
                             } label: {
                                 Image(systemName: "xmark")
                             }
