@@ -18,6 +18,9 @@ struct HomeView: View {
     @State private var showTimePicker = false
     @State private var showEditListSheet = false
     
+    @State private var askedForNotifications = false
+    @State private var notificationsEnabled = false // UNIMPLEMENTED
+    
     var body: some View {
         ZStack {
             // Background
@@ -62,7 +65,19 @@ struct HomeView: View {
                     Button(action: {
                         if viewModel.currentList.notificationsOn {
                             viewModel.allLists.lists[viewModel.allLists.currentList].notificationsOn = false
+                            viewModel.disablePushNotificationsCurrentList()
                         } else {
+                            Notifications.checkNotificationSettings { enabled in
+                                if enabled {
+                                    notificationsEnabled = true
+                                } else {
+                                    Notifications.requestNotificationAuthorization { granted in
+                                        if granted {notificationsEnabled = true}
+                                    }
+
+                                }
+                            }
+                            
                             showTimePicker = true
                         }
                     }) {
@@ -129,7 +144,7 @@ struct HomeView: View {
         .overlay(
             ZStack {
                 if showTimePicker {
-                    TimePickerOverlay(viewModel: viewModel,showOverlay: $showTimePicker)
+                    TimePickerOverlay(viewModel: viewModel, showOverlay: $showTimePicker, notificationsEnabled: $notificationsEnabled)
                 }
             }
         )
