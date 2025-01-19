@@ -30,6 +30,7 @@ struct OTDList: Identifiable, Codable {
     // User settings
     var isShuffled: Bool = false
     var notificationsOn: Bool = false
+    var notificationTime: Date?
 }
 
 struct OTDAllLists: Codable {

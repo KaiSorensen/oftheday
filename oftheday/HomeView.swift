@@ -15,6 +15,7 @@ struct HomeView: View {
     @Binding var showWidgetSettings: Bool
     @Binding var showMainMenu: Bool
     
+    @State private var showTimePicker = false
     @State private var showEditListSheet = false
     
     var body: some View {
@@ -55,6 +56,17 @@ struct HomeView: View {
                         viewModel.toggleShuffle()
                     }) {
                         Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
+                            .font(.title2)
+                    }
+                    
+                    Button(action: {
+                        if viewModel.currentList.notificationsOn {
+                            viewModel.allLists.lists[viewModel.allLists.currentList].notificationsOn = false
+                        } else {
+                            showTimePicker = true
+                        }
+                    }) {
+                        Image(systemName: viewModel.currentList.notificationsOn ? "bell.circle.fill" : "bell.circle")
                             .font(.title2)
                     }
                     
@@ -114,6 +126,13 @@ struct HomeView: View {
                 Spacer()
             }
         }
+        .overlay(
+            ZStack {
+                if showTimePicker {
+                    TimePickerOverlay(viewModel: viewModel,showOverlay: $showTimePicker)
+                }
+            }
+        )
         // Present the edit list sheet
         .sheet(isPresented: $showEditListSheet) {
             EditListView(viewModel: viewModel, isPresented: $showEditListSheet)
