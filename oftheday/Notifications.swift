@@ -27,15 +27,3 @@ struct Notifications {
     }
 
 }
-
-struct Midnight {
-    
-    
-    
-    func cancelMidnightUpdate() {
-        timer?.invalidate()
-        timer = nil
-    }
-    
-    
-}

@@ -336,28 +336,9 @@ class OTDViewModel: ObservableObject {
         print("Notifications disabled for list \(currentList.title).")
     }
     
-    // for updating the items at midnight
-    private var timer: Timer?
-    
-    func scheduleMidnightUpdate(allLists: OTDAllLists) {
-        // Calculate the time interval until the next midnight
-        let calendar = Calendar.current
-        let now = Date()
-        let nextMidnight = calendar.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0, second: 0), matchingPolicy: .strict)!
-        let timeInterval = nextMidnight.timeIntervalSince(now)
-        
-        // Schedule a timer to trigger at midnight
-        timer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { _ in
-            // Update lists and reschedule the next midnight update
-            var mutableLists = allLists
-            mutableLists.updateAllLists()
-            self.scheduleMidnightUpdate(allLists: mutableLists) // Reschedule for the next day
-        }
-    }
-    
     // The midnight functions tell the app to update the current items when the phone's clock hits midnight, even if the app isn't open
     func scheduleMidnightUpdate() {
-            let request = BGAppRefreshTaskRequest(identifier: "com.yourapp.midnightUpdate")
+            let request = BGAppRefreshTaskRequest(identifier: "com.oftheday.midnightUpdate")
             
             // Schedule the task to run no earlier than midnight
             let calendar = Calendar.current
