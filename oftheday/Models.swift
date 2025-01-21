@@ -276,8 +276,15 @@ class OTDViewModel: ObservableObject {
         allLists.lists.move(fromOffsets: source, toOffset: destination)
     }
     
+    /// Toggle shuffle for the currently selected list
     func toggleShuffle() {
         allLists.lists[allLists.currentList].isShuffled.toggle()
+        if (allLists.lists[allLists.currentList].isShuffled) {
+            realignItems()
+            allLists.lists[allLists.currentList].itemOrder.shuffle()
+        } else {
+            allLists.lists[allLists.currentList].itemOrder.sort()
+        }
     }
     
     /// Toggles the visibility of a specific list
