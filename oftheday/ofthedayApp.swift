@@ -18,7 +18,7 @@ struct OfTheDayApp: App {
                 .environmentObject(viewModel)
                 .onAppear {
                     // Register background task to update items at midnight
-                    BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.oftheday.midnightUpdate", using: nil) { task in
+                    BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.kai.oftheday", using: nil) { task in
                         guard let refreshTask = task as? BGAppRefreshTask else { return }
                         viewModel.handleMidnightUpdate(task: refreshTask)
                     }

@@ -338,12 +338,12 @@ class OTDViewModel: ObservableObject {
     
     // The midnight functions tell the app to update the current items when the phone's clock hits midnight, even if the app isn't open
     func scheduleMidnightUpdate() {
-            let request = BGAppRefreshTaskRequest(identifier: "com.oftheday.midnightUpdate")
+            let request = BGAppRefreshTaskRequest(identifier: "com.kai.oftheday")
             
             // Schedule the task to run no earlier than midnight
             let calendar = Calendar.current
             let now = Date()
-            if let nextMidnight = calendar.nextDate(after: now, matching: DateComponents(hour: 0, minute: 0), matchingPolicy: .strict) {
+            if let nextMidnight = calendar.nextDate(after: now, matching: DateComponents(hour: 14, minute: 45), matchingPolicy: .strict) {
                 request.earliestBeginDate = nextMidnight
             }
             
@@ -360,7 +360,17 @@ class OTDViewModel: ObservableObject {
             scheduleMidnightUpdate()
 
             // Perform the update
-            allLists.updateAllLists()
+//            allLists.updateAllLists()
+            
+            // this block is for testing, instead of the previous line
+            
+            
+            for i in 0..<allLists.lists.count {
+                allLists.lists[i].currentItem = (allLists.lists[i].currentItem + 1) % allLists.lists[i].items.count
+            }
+                
+            
+            
             print("Midnight update performed.")
             
             // Complete the task
