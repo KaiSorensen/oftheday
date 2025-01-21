@@ -18,7 +18,9 @@ struct HomeView: View {
     @State private var showEditListSheet = false
     
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
+            
+                
             // Background
             Color(.systemBackground)
                 .ignoresSafeArea()
@@ -45,73 +47,87 @@ struct HomeView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
                 
-                // Chips row
-                ChipsRowView(selectedIndex: $viewModel.allLists.currentList, lists: viewModel.allLists.lists)
-                    .padding(.vertical, 8)
-                
-                // Shuffle / Reshuffle / Edit row
-                HStack(spacing: 20) {
-                    Button(action: {
-                        viewModel.toggleShuffle()
-                    }) {
-                        Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
-                            .font(.title2)
-                    }
-                    
-                    // Edit button
-                    Button(action: {
-                        showEditListSheet = true
-                    }) {
-                        Image(systemName: "hammer.circle")
-                            .font(.title2)
-                    }
-                }
-                .padding(.bottom, 8)
-                
-                // Main card area (with gestures)
-                GeometryReader { geo in
-                    // We use a ZStack or similar here so we can apply gesture
-                    ZStack {
-                        CardView(item: viewModel.currentItem)
-                            .frame(
-                                width: geo.size.width * 0.9,
-                                height: geo.size.height * 0.8
-                            )
-                            .animation(.easeInOut, value: viewModel.currentItem.id)
-                            // The card animates when the item changes
-                            .gesture(
-                                DragGesture(minimumDistance: 30)
-                                    .onEnded { value in
-                                        let horizontalDistance = value.translation.width
-                                        let verticalDistance = value.translation.height
+                if (viewModel.allLists.currentList == -1) {
+                    Spacer()
                                         
-                                        // Determine if the swipe was mostly horizontal or vertical
-                                        if abs(horizontalDistance) > abs(verticalDistance) {
-                                            // Horizontal swipe
-                                            if horizontalDistance < 0 {
-                                                // Swipe left
-                                                viewModel.nextList()
+                    Text("~ pure potential ~")                        .multilineTextAlignment(.center)
+                        .padding()
+                    
+                    Spacer()
+                } else {
+                    
+                    
+                    
+                    // Chips row
+                    ChipsRowView(selectedIndex: $viewModel.allLists.currentList, lists: viewModel.allLists.lists)
+                        
+                        .padding(.vertical, 8)
+                    
+                    // Shuffle / Reshuffle / Edit row
+                    HStack(spacing: 20) {
+                        Button(action: {
+                            viewModel.toggleShuffle()
+                        }) {
+                            Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
+                                .font(.title2)
+                        }
+                        
+                        // Edit button
+                        Button(action: {
+                            showEditListSheet = true
+                        }) {
+                            Image(systemName: "hammer.circle")
+                                .font(.title2)
+                        }
+                    }
+                    .padding(.bottom, 8)
+                    
+                    // Main card area (with gestures)
+                    GeometryReader { geo in
+                        // We use a ZStack or similar here so we can apply gesture
+                        ZStack {
+                            CardView(item: viewModel.currentItem)
+                                .frame(
+                                    width: geo.size.width * 0.9,
+                                    height: geo.size.height * 0.8
+                                )
+                                .animation(.easeInOut, value: viewModel.currentItem.id)
+                            // The card animates when the item changes
+                                .gesture(
+                                    DragGesture(minimumDistance: 30)
+                                        .onEnded { value in
+                                            let horizontalDistance = value.translation.width
+                                            let verticalDistance = value.translation.height
+                                            
+                                            // Determine if the swipe was mostly horizontal or vertical
+                                            if abs(horizontalDistance) > abs(verticalDistance) {
+                                                // Horizontal swipe
+                                                if horizontalDistance < 0 {
+                                                    // Swipe left
+                                                    viewModel.nextList()
+                                                } else {
+                                                    // Swipe right
+                                                    viewModel.prevList()
+                                                }
                                             } else {
-                                                // Swipe right
-                                                viewModel.prevList()
-                                            }
-                                        } else {
-                                            // Vertical swipe
-                                            if verticalDistance < 0 {
-                                                // Swipe up
-                                                viewModel.nextItem()
-                                            } else {
-                                                // Swipe down
-                                                viewModel.prevItem()
+                                                // Vertical swipe
+                                                if verticalDistance < 0 {
+                                                    // Swipe up
+                                                    viewModel.nextItem()
+                                                } else {
+                                                    // Swipe down
+                                                    viewModel.prevItem()
+                                                }
                                             }
                                         }
-                                    }
-                            )
+                                )
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
+                    Spacer()
                 }
                 
-                Spacer()
             }
         }
         // Present the edit list sheet

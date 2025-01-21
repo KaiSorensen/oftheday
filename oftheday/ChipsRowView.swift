@@ -16,20 +16,22 @@ struct ChipsRowView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack {
                 ForEach(Array(lists.enumerated()), id: \.offset) { index, list in
-                    Button(action: {
-                        selectedIndex = index
-                    }) {
-                        Text(list.title)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(selectedIndex == index ?
-                                          Color.blue.opacity(0.2) :
-                                          Color.gray.opacity(0.2))
-                            )
+                    if list.isVisible {
+                        Button(action: {
+                            selectedIndex = index
+                        }) {
+                            Text(list.title)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(selectedIndex == index ?
+                                              Color.blue.opacity(0.2) :
+                                              Color.gray.opacity(0.2))
+                                )
+                        }
+                        .foregroundColor(selectedIndex == index ? .blue : .primary)
                     }
-                    .foregroundColor(selectedIndex == index ? .blue : .primary)
                 }
             }
             .padding(.horizontal)

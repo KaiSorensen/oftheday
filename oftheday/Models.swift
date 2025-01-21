@@ -230,8 +230,15 @@ class OTDViewModel: ObservableObject {
     
     /// Moves to the next list (wrap around)
     func nextList() {
-        guard !allLists.lists.isEmpty else { return }
-        let nextIndex = (allLists.currentList + 1) % allLists.lists.count
+        guard !allLists.lists.isEmpty, allLists.currentList != -1 else {
+            print("guard triggered ( nextList() )")
+            return
+        }
+        var nextIndex = (allLists.currentList + 1) % allLists.lists.count
+        while (!allLists.lists[nextIndex].isVisible) {
+            nextIndex = (nextIndex + 1)
+            nextIndex %= allLists.lists.count
+        }
         allLists.currentList = nextIndex
         print("next list: \(nextIndex)")
     }
@@ -239,9 +246,19 @@ class OTDViewModel: ObservableObject {
     /// Moves to the previous list (wrap around)
     func prevList() {
         let listCount = allLists.lists.count
-        guard listCount > 0 else { return }
+        guard listCount > 0, allLists.currentList != -1 else {
+            print("guard triggered ( prevList() )")
+            return
+        }
+        
         var prevIndex = (allLists.currentList - 1)
         if (prevIndex < 0) {prevIndex += listCount}
+        
+        while (!allLists.lists[prevIndex].isVisible) {
+            prevIndex = (prevIndex - 1)
+            if (prevIndex < 0) {prevIndex += listCount}
+        }
+        
         allLists.currentList = prevIndex
         print("previous item: \(prevIndex)")
     }
@@ -259,12 +276,22 @@ class OTDViewModel: ObservableObject {
         allLists.lists.move(fromOffsets: source, toOffset: destination)
     }
     
+    func toggleShuffle() {
+        allLists.lists[allLists.currentList].isShuffled.toggle()
+    }
+    
     /// Toggles the visibility of a specific list
     func toggleVisibility(for list: OTDList) {
-        guard let index = allLists.lists.firstIndex(where: { $0.id == list.id }) else { return }
+        guard let index = allLists.lists.firstIndex(where: { $0.id == list.id }) else {
+            print("List not found ( toggleVisibility() )")
+            return }
         
         // Toggle visibility
         allLists.lists[index].isVisible.toggle()
+        
+        if allLists.currentList == -1 {
+            allLists.currentList = index
+        }
         
         // If the toggled list is the active list and it's now invisible, switch to next visible list or set to -1
         if allLists.currentList == index && !allLists.lists[index].isVisible {
@@ -275,12 +302,25 @@ class OTDViewModel: ObservableObject {
             }
         }
     }
-
-    func toggleVisibility(for list: OTDList) {
-        if let index = allLists.lists.firstIndex(where: { $0.id == list.id }) {
-            allLists.lists[index].isVisible.toggle()
+    /// Helper function to switch to next visible list from a given index
+        private func switchToNextVisible(from index: Int) -> Bool {
+            let listCount = allLists.lists.count
+            var nextIndex = index
+            var attempts = 0
+            
+            repeat {
+                nextIndex = (nextIndex + 1) % listCount
+                attempts += 1
+                if allLists.lists[nextIndex].isVisible {
+                    allLists.currentList = nextIndex
+                    print("Switched to next visible list: \(nextIndex)")
+                    return true
+                }
+            } while (nextIndex != index) && (attempts < listCount)
+            
+            // No other visible list found
+            return false
         }
-    }
     
 }
 
