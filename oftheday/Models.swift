@@ -26,8 +26,8 @@ struct OTDList: Identifiable, Codable {
     var itemOrder: [Int]
     var currentItem: Int = 0
     
-    
     // User settings
+    var isVisible: Bool = true
     var isShuffled: Bool = false
     var notificationsOn: Bool = false
 }
@@ -124,7 +124,7 @@ class OTDViewModel: ObservableObject {
         return allLists.lists[allLists.currentList]
     }
     
-        /// The currently selected item in `currentList`.
+    /// The currently selected item in `currentList`.
     var currentItem: OTDItem {
         var list = currentList
         if list.items.isEmpty {
@@ -140,7 +140,7 @@ class OTDViewModel: ObservableObject {
     func addItem(item: OTDItem) {
         // The new index is the current length of items
         let newIndex = allLists.lists[allLists.currentList].items.count
-
+        
         // If it's shuffled, insert randomly; otherwise append
         if allLists.lists[allLists.currentList].isShuffled {
             let randomIndex = Int.random(in: 0...newIndex)
@@ -149,11 +149,11 @@ class OTDViewModel: ObservableObject {
         } else {
             allLists.lists[allLists.currentList].itemOrder.append(newIndex)
         }
-
+        
         // Now actually append the new item
         allLists.lists[allLists.currentList].items.append(item)
     }
-
+    
     
     // PARAM - index of the itemOrder, not the index of the item
     func removeItem (orderIndex: Int) {
@@ -234,7 +234,6 @@ class OTDViewModel: ObservableObject {
         let nextIndex = (allLists.currentList + 1) % allLists.lists.count
         allLists.currentList = nextIndex
         print("next list: \(nextIndex)")
-        
     }
     
     /// Moves to the previous list (wrap around)
@@ -247,14 +246,53 @@ class OTDViewModel: ObservableObject {
         print("previous item: \(prevIndex)")
     }
     
-    /// Toggle shuffle for the currently selected list
-    func toggleShuffle() {
-        allLists.lists[allLists.currentList].isShuffled.toggle()
-        if (allLists.lists[allLists.currentList].isShuffled) {
-            realignItems()
-            allLists.lists[allLists.currentList].itemOrder.shuffle()
-        } else {
-            allLists.lists[allLists.currentList].itemOrder.sort()
+    func addList(title: String) {
+        let newList = OTDList(title: title, items: [], itemOrder: [])
+        allLists.lists.append(newList)
+    }
+    
+    func removeList(at offsets: IndexSet) {
+        allLists.lists.remove(atOffsets: offsets)
+    }
+    
+    func moveList(from source: IndexSet, to destination: Int) {
+        allLists.lists.move(fromOffsets: source, toOffset: destination)
+    }
+    
+    /// Toggles the visibility of a specific list
+    func toggleVisibility(for list: OTDList) {
+        guard let index = allLists.lists.firstIndex(where: { $0.id == list.id }) else { return }
+        
+        // Toggle visibility
+        allLists.lists[index].isVisible.toggle()
+        
+        // If the toggled list is the active list and it's now invisible, switch to next visible list or set to -1
+        if allLists.currentList == index && !allLists.lists[index].isVisible {
+            let previousIndex = allLists.currentList
+            let switched = switchToNextVisible(from: previousIndex)
+            if !switched {
+                allLists.currentList = -1
+            }
         }
     }
+
+    func toggleVisibility(for list: OTDList) {
+        if let index = allLists.lists.firstIndex(where: { $0.id == list.id }) {
+            allLists.lists[index].isVisible.toggle()
+        }
+    }
+    
 }
+
+/*
+ TO DO
+ 
+ make it so toggle, remove/add list, wrap around to the active lists. Toggle should make the currentList change.
+ 
+ if no lists are active, currentList should be -1. HomeView needs to accoutn for this; it's possible for none to be active.
+ 
+ then the toggles will work
+ 
+ note that the chips and the card view are separate components. everything happens on the data side, but the HomeView needs to accoutn for the -1 state.
+ 
+ */

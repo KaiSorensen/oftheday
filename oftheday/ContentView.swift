@@ -31,7 +31,7 @@ struct ContentView: View {
             // Main menu overlay
             ZStack {
                 if showMainMenu {
-                    MainMenuOverlay(showOverlay: $showMainMenu)
+                    ListManagementOverlay(viewModel: viewModel, showOverlay: $showMainMenu)
                 }
             }
         )

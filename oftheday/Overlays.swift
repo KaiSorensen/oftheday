@@ -49,41 +49,131 @@ struct SettingsOverlay: View {
     }
 }
 
-struct MainMenuOverlay: View {
+struct ListManagementOverlay: View {
+    @ObservedObject var viewModel: OTDViewModel
     @Binding var showOverlay: Bool
+    
+    // State variables for handling alerts and sheets
+    @State private var showDeleteConfirmation = false
+    @State private var listToDelete: OTDList?
+    
+    @State private var showAddListSheet = false
+    @State private var newListTitle: String = ""
     
     var body: some View {
         ZStack {
-            // Blurred background
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
+            // Semi-transparent background
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
                 .onTapGesture {
-                    // Dismiss overlay if tapped outside
-                    showOverlay = false
+                    withAnimation {
+                        showOverlay = false
+                    }
                 }
             
-            // Overlay container
+            // Overlay content
             VStack {
-                Text("Main Menu")
-                    .font(.title2)
-                    .bold()
+                Text("Manage Lists")
+                    .font(.headline)
                     .padding()
                 
-                // Placeholder for future app/account settings
-                Text("App and account settings go here…")
-                    .padding()
-                
-                Spacer()
-                
-                Button("Close") {
-                    showOverlay = false
+                List {
+                    ForEach(viewModel.allLists.lists.indices, id: \.self) { index in
+                        let list = viewModel.allLists.lists[index]
+                        HStack {
+                            Text(list.title)
+                                .font(.body)
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { list.isVisible },
+                                set: { _ in
+                                    withAnimation {
+                                        viewModel.toggleVisibility(for: list)
+                                    }
+                                }
+                            ))
+                            .labelsHidden()
+                        }
+                        .contentShape(Rectangle()) // Makes entire row tappable
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                listToDelete = list
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                    .onDelete { indexSet in
+                        if let first = indexSet.first {
+                            listToDelete = viewModel.allLists.lists[first]
+                            showDeleteConfirmation = true
+                        }
+                    }
+                    .onMove(perform: viewModel.moveList)
                 }
-                .padding()
+                .listStyle(PlainListStyle())
+                
+                HStack {
+                    Button(action: {
+                        showAddListSheet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus")
+                            Text("Add List")
+                        }
+                    }
+                    Spacer()
+                    EditButton()
+                }
+                .padding([.horizontal, .bottom])
             }
-            .frame(maxWidth: 300, maxHeight: 300)
+            .frame(maxWidth: 350, maxHeight: 500)
             .background(Color(UIColor.systemBackground))
             .cornerRadius(16)
             .shadow(radius: 10)
+            .padding()
+        }
+        // Delete Confirmation Alert
+        .alert(isPresented: $showDeleteConfirmation) {
+            Alert(
+                title: Text("Delete List"),
+                message: Text("Are you sure you want to delete \"\(listToDelete?.title ?? "this list")\"?"),
+                primaryButton: .destructive(Text("Delete")) {
+                    if let list = listToDelete, let index = viewModel.allLists.lists.firstIndex(where: { $0.id == list.id }) {
+                        viewModel.removeList(at: IndexSet(integer: index))
+                    }
+                },
+                secondaryButton: .cancel()
+            )
+        }
+        // Add List Sheet
+        .sheet(isPresented: $showAddListSheet) {
+            NavigationView {
+                VStack {
+                    TextField("List Title", text: $newListTitle)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .padding()
+                    
+                    Spacer()
+                }
+                .navigationBarTitle("New List", displayMode: .inline)
+                .navigationBarItems(
+                    leading: Button("Cancel") {
+                        showAddListSheet = false
+                        newListTitle = ""
+                    },
+                    trailing: Button("Add") {
+                        let trimmedTitle = newListTitle.trimmingCharacters(in: .whitespaces)
+                        if !trimmedTitle.isEmpty {
+                            viewModel.addList(title: trimmedTitle)
+                            showAddListSheet = false
+                            newListTitle = ""
+                        }
+                    }
+                    .disabled(newListTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+                )
+            }
         }
     }
 }
