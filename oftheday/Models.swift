@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import Combine
+import BackgroundTasks
 
 // MARK: - Models
 
@@ -30,15 +30,49 @@ struct OTDList: Identifiable, Codable {
     var isVisible: Bool = true
     var isShuffled: Bool = false
     var notificationsOn: Bool = false
+    var reactivateNotifications: Bool = false
+    var notificationTime: Date?
+    
+    mutating func updateCurrentItem() {
+        guard (items.count > 1) else { return }
+        
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Retrieve the last updated date, or default to the app start date
+        let lastUpdatedKey = "lastUpdated_\(id.uuidString)"
+        let defaults = UserDefaults.standard
+        let lastUpdated = defaults.object(forKey: lastUpdatedKey) as? Date ?? now
+        
+        // Calculate the number of days that have passed
+        let daysPassed = calendar.dateComponents([.day], from: lastUpdated, to: now).day ?? 0
+        
+        if daysPassed > 0 {
+            // Increment currentItem based on the number of days passed
+            currentItem = (currentItem + daysPassed) % items.count
+            
+            // Save the updated date
+            defaults.set(now, forKey: lastUpdatedKey)
+        }
+    }
 }
 
 struct OTDAllLists: Codable {
     var lists: [OTDList]
     var currentList: Int = 0
+    
+    mutating func updateAllLists() {
+        for index in 0..<lists.count {
+            lists[index].updateCurrentItem()
+        }
+    }
 }
 
 /// ViewModel to manage an array of OTDLists
 class OTDViewModel: ObservableObject {
+    
+    private let notificationCenter = UNUserNotificationCenter.current()
+
     @Published var allLists: OTDAllLists {
         didSet {
             // automatically save whenever changes are made
@@ -46,12 +80,8 @@ class OTDViewModel: ObservableObject {
         }
     }
     
-    ///  Track which list we're on
-    @Published var selectedListIndex: Int
-    
     init() {
         self.allLists = OTDAllLists(lists: [], currentList: 0)
-        self.selectedListIndex = 0
         
         loadLists() // Attempt to load from storage
     }
@@ -62,6 +92,7 @@ class OTDViewModel: ObservableObject {
             do {
                 let decoded = try JSONDecoder().decode(OTDAllLists.self, from: data)
                 self.allLists = decoded
+                self.allLists.updateAllLists() // in case days have passed since last opened
             } catch {
                 print("Error decoding OTDLists from UserDefaults: \(error)")
                 loadDefaults()
@@ -136,7 +167,7 @@ class OTDViewModel: ObservableObject {
         if (list.currentItem < 0 || list.currentItem >= list.items.count) {list.currentItem = 0} // I'm doing this for debugging
         return list.items[list.itemOrder[list.currentItem]]
     }
-    
+
     func addItem(item: OTDItem) {
         // The new index is the current length of items
         let newIndex = allLists.lists[allLists.currentList].items.count
@@ -269,6 +300,7 @@ class OTDViewModel: ObservableObject {
     }
     
     func removeList(at offsets: IndexSet) {
+        
         allLists.lists.remove(atOffsets: offsets)
     }
     
@@ -303,36 +335,112 @@ class OTDViewModel: ObservableObject {
         }
     }
     /// Helper function to switch to next visible list from a given index
-        private func switchToNextVisible(from index: Int) -> Bool {
-            let listCount = allLists.lists.count
-            var nextIndex = index
-            var attempts = 0
+    private func switchToNextVisible(from index: Int) -> Bool {
+        let listCount = allLists.lists.count
+        var nextIndex = index
+        var attempts = 0
+        
+        repeat {
+            nextIndex = (nextIndex + 1) % listCount
+            attempts += 1
+            if allLists.lists[nextIndex].isVisible {
+                allLists.currentList = nextIndex
+                print("Switched to next visible list: \(nextIndex)")
+                return true
+            }
+        } while (nextIndex != index) && (attempts < listCount)
+        
+        // No other visible list found
+        return false
+    }
+    
+    /// Notifications functions
+    func enablePushNotificationsCurrentList() {
+        let currentList = allLists.lists[allLists.currentList]
+        guard currentList.notificationsOn,
+              let notificationTime = currentList.notificationTime else {
+            print("Redundancy check failed: enablePush called when notifications are off, or notificationTime is not set.")
+            return
+        }
+        
+        // Schedule the notification
+        let content = UNMutableNotificationContent()
+        
+        // There are shorter ways to write this logic, but this is easiest to read.
+        if (currentList.items[currentList.currentItem].header != nil && currentList.items[currentList.currentItem].body != nil ) {
+            content.title = currentList.items[currentList.currentItem].header ?? ""
+            content.body = currentList.items[currentList.currentItem].body ?? ""
+        }
+        else if (currentList.items[currentList.currentItem].header == nil && currentList.items[currentList.currentItem].body != nil ) {
+            content.title = currentList.title
+            content.body = currentList.items[currentList.currentItem].body ?? ""
+        }
+        else if (currentList.items[currentList.currentItem].header != nil && currentList.items[currentList.currentItem].body == nil ) {
+            content.title = currentList.title
+            content.body = currentList.items[currentList.currentItem].header ?? ""
+        }
+        
+        let calendar = Calendar.current
+        var dateComponents = calendar.dateComponents([.hour, .minute], from: notificationTime)
+        dateComponents.timeZone = TimeZone.current
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        let request = UNNotificationRequest(identifier: currentList.id.uuidString, content: content, trigger: trigger)
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("Error scheduling notification: \(error.localizedDescription)")
+            } else {
+                print("Notification scheduled for list \(currentList.title).")
+            }
+        }
+    }
+        
+    func disablePushNotificationsCurrentList() {
+        let currentList = allLists.lists[allLists.currentList]
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [currentList.id.uuidString])
+        print("Notifications disabled for list \(currentList.title).")
+    }
+    
+    // The midnight functions tell the app to update the current items when the phone's clock hits midnight, even if the app isn't open
+    func scheduleMidnightUpdate() {
+            let request = BGAppRefreshTaskRequest(identifier: "com.kai.oftheday")
             
-            repeat {
-                nextIndex = (nextIndex + 1) % listCount
-                attempts += 1
-                if allLists.lists[nextIndex].isVisible {
-                    allLists.currentList = nextIndex
-                    print("Switched to next visible list: \(nextIndex)")
-                    return true
-                }
-            } while (nextIndex != index) && (attempts < listCount)
+            // Schedule the task to run no earlier than midnight
+            let calendar = Calendar.current
+            let now = Date()
+            if let nextMidnight = calendar.nextDate(after: now, matching: DateComponents(hour: 14, minute: 45), matchingPolicy: .strict) {
+                request.earliestBeginDate = nextMidnight
+            }
             
-            // No other visible list found
-            return false
+            do {
+                try BGTaskScheduler.shared.submit(request)
+                print("Successfully scheduled midnight update.")
+            } catch {
+                print("Failed to schedule midnight update: \(error.localizedDescription)")
+            }
+        }
+
+        func handleMidnightUpdate(task: BGAppRefreshTask) {
+            // Schedule the next update
+            scheduleMidnightUpdate()
+
+            // Perform the update
+//            allLists.updateAllLists()
+            
+            // this block is for testing, instead of the previous line
+            
+            
+            for i in 0..<allLists.lists.count {
+                allLists.lists[i].currentItem = (allLists.lists[i].currentItem + 1) % allLists.lists[i].items.count
+            }
+                
+            
+            
+            print("Midnight update performed.")
+            
+            // Complete the task
+            task.setTaskCompleted(success: true)
         }
     
 }
-
-/*
- TO DO
- 
- make it so toggle, remove/add list, wrap around to the active lists. Toggle should make the currentList change.
- 
- if no lists are active, currentList should be -1. HomeView needs to accoutn for this; it's possible for none to be active.
- 
- then the toggles will work
- 
- note that the chips and the card view are separate components. everything happens on the data side, but the HomeView needs to accoutn for the -1 state.
- 
- */
