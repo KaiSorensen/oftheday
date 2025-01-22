@@ -297,11 +297,29 @@ class OTDViewModel: ObservableObject {
     func addList(title: String) {
         let newList = OTDList(title: title, items: [], itemOrder: [])
         allLists.lists.append(newList)
+        if (allLists.currentList == -1) {
+            allLists.currentList = allLists.lists.count - 1
+        }
     }
     
-    func removeList(at offsets: IndexSet) {
+    func removeList(at index: Int) {
+        print("list to remove ", index)
+        allLists.lists[index].isVisible.toggle()
+        //there are simpler ways to write this logic, but this way is easiest for me to understand
+  
+        // Find another visible list to set as currentList
+        if let newCurrentIndex = allLists.lists.firstIndex(where: { $0.isVisible }) {
+            allLists.currentList = newCurrentIndex
+            
+        } else {
+            // If no visible lists are found, set currentList to -1
+            allLists.currentList = -1
+        }
         
-        allLists.lists.remove(atOffsets: offsets)
+        
+        print("current list after removal: ", allLists.currentList)
+        
+        allLists.lists.remove(at: index)
     }
     
     func moveList(from source: IndexSet, to destination: Int) {

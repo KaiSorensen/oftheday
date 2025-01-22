@@ -141,7 +141,7 @@ struct ListManagementOverlay: View {
                 message: Text("Are you sure you want to delete \"\(listToDelete?.title ?? "this list")\"?"),
                 primaryButton: .destructive(Text("Delete")) {
                     if let list = listToDelete, let index = viewModel.allLists.lists.firstIndex(where: { $0.id == list.id }) {
-                        viewModel.removeList(at: IndexSet(integer: index))
+                        viewModel.removeList(at: index)
                     }
                 },
                 secondaryButton: .cancel()
