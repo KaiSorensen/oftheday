@@ -79,7 +79,9 @@ struct HomeView: View {
                         Button(action: {
                             if viewModel.currentList.notificationsOn {
                                 viewModel.allLists.lists[viewModel.allLists.currentList].notificationsOn = false
-                                viewModel.disablePushNotificationsCurrentList()
+
+                                viewModel.allLists.lists[viewModel.allLists.currentList].disableNotifications()
+                                
                             } else {
                                 Notifications.checkNotificationSettings { enabled in
                                     if enabled {

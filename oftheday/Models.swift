@@ -1,17 +1,15 @@
-//
-//  Untitled.swift
-//  oftheday
-//
-//  Created by user268370 on 1/12/25.
-//
-
 import SwiftUI
 import BackgroundTasks
+import UserNotifications
+
+struct NotificationHelper {
+    static let notificationCenter = UNUserNotificationCenter.current()
+}
 
 // MARK: - Models
 
 /// Represents a single item in a list (header + body + optional image)
-struct OTDItem: Identifiable, Codable {
+struct OTDItem: Identifiable, Codable, Equatable {
     var id = UUID()
     var header: String?
     var body: String?
@@ -19,7 +17,7 @@ struct OTDItem: Identifiable, Codable {
 }
 
 /// Represents a list of "Of The Day" items, with user settings
-struct OTDList: Identifiable, Codable {
+struct OTDList: Identifiable, Codable, Equatable {
     var id = UUID()
     var title: String
     var items: [OTDItem]
@@ -29,10 +27,11 @@ struct OTDList: Identifiable, Codable {
     // User settings
     var isVisible: Bool = true
     var isShuffled: Bool = false
+    
     var notificationsOn: Bool = false
-    var reactivateNotifications: Bool = false
     var notificationTime: Date?
     
+    /// Updates the current item if a day has passed since last update.
     mutating func updateCurrentItem() {
         guard (items.count > 1) else { return }
         
@@ -55,7 +54,70 @@ struct OTDList: Identifiable, Codable {
             defaults.set(now, forKey: lastUpdatedKey)
         }
     }
+    
+    // MARK: - Notifications for this specific list
+    
+    /// Schedules a daily notification for this list’s current item, if notificationsOn == true and list is visible.
+    /// We pass in the notification center from outside for clarity.
+    mutating func enableNotifications() {
+            guard notificationsOn, isVisible, let notificationTime = notificationTime else {
+                return
+            }
+            
+            // Remove any existing notifications for this list
+            disableNotifications()
+            
+            let content = UNMutableNotificationContent()
+            
+            let currentTitle = title
+            let currentHeader = items[currentItem].header
+            let currentBody = items[currentItem].body
+            
+            // Configure notification content
+            switch (currentHeader, currentBody) {
+            case let (h?, b?):
+                content.title = h
+                content.body  = b
+            case (nil, let b?):
+                content.title = currentTitle
+                content.body  = b
+            case (let h?, nil):
+                content.title = currentTitle
+                content.body  = h
+            default:
+                content.title = currentTitle
+                content.body  = "No content available."
+            }
+            
+            var dateComponents = Calendar.current.dateComponents([.hour, .minute], from: notificationTime)
+            dateComponents.timeZone = TimeZone.current
+            
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+            let request = UNNotificationRequest(identifier: id.uuidString, content: content, trigger: trigger)
+            
+            // Use the static notificationCenter
+            NotificationHelper.notificationCenter.add(request) { error in
+                if let error = error {
+                    print("Error scheduling notification: \(error.localizedDescription)")
+                } else {
+                    print("Notification scheduled for list \(currentTitle)")
+                }
+            }
+        }
+        
+        /// Removes pending notifications for this list
+        mutating func disableNotifications() {
+            NotificationHelper.notificationCenter.removePendingNotificationRequests(withIdentifiers: [id.uuidString])
+            print("Notifications disabled for list \(title)")
+        }
+    
+    /// Removes pending notifications for this list
+    mutating func disableNotifications(using notificationCenter: UNUserNotificationCenter) {
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: [id.uuidString])
+        print("Notifications disabled for list \(title)")
+    }
 }
+
 
 struct OTDAllLists: Codable {
     var lists: [OTDList]
@@ -70,8 +132,6 @@ struct OTDAllLists: Codable {
 
 /// ViewModel to manage an array of OTDLists
 class OTDViewModel: ObservableObject {
-    
-    private let notificationCenter = UNUserNotificationCenter.current()
 
     @Published var allLists: OTDAllLists {
         didSet {
@@ -82,7 +142,6 @@ class OTDViewModel: ObservableObject {
     
     init() {
         self.allLists = OTDAllLists(lists: [], currentList: 0)
-        
         loadLists() // Attempt to load from storage
     }
     
@@ -125,7 +184,6 @@ class OTDViewModel: ObservableObject {
                     ],
                     itemOrder: [0,1],
                     currentItem: 0
-                    
                 ),
                 OTDList(
                     title: "Historical People",
@@ -155,60 +213,49 @@ class OTDViewModel: ObservableObject {
         return allLists.lists[allLists.currentList]
     }
     
-    /// The currently selected item in `currentList`.
+    /// The currently selected item in currentList.
     var currentItem: OTDItem {
         var list = currentList
         if list.items.isEmpty {
             return OTDItem(header: "Empty", body: "No items")
         }
         
-        // If the user set `isShuffled`, you could still interpret that here.
-        // For now, let’s just honor the selectedItemIndex:
-        if (list.currentItem < 0 || list.currentItem >= list.items.count) {list.currentItem = 0} // I'm doing this for debugging
+        if (list.currentItem < 0 || list.currentItem >= list.items.count) {
+            // Just a safety fallback
+            list.currentItem = 0
+        }
         return list.items[list.itemOrder[list.currentItem]]
     }
 
     func addItem(item: OTDItem) {
-        // The new index is the current length of items
         let newIndex = allLists.lists[allLists.currentList].items.count
         
-        // If it's shuffled, insert randomly; otherwise append
         if allLists.lists[allLists.currentList].isShuffled {
             let randomIndex = Int.random(in: 0...newIndex)
-            // If you want to adjust currentItem here, do so carefully
             allLists.lists[allLists.currentList].itemOrder.insert(newIndex, at: randomIndex)
         } else {
             allLists.lists[allLists.currentList].itemOrder.append(newIndex)
         }
         
-        // Now actually append the new item
         allLists.lists[allLists.currentList].items.append(item)
     }
     
-    
     // PARAM - index of the itemOrder, not the index of the item
     func removeItem (orderIndex: Int) {
-        guard (!(currentList.items.count == 0)) else {return}
-        guard (!(orderIndex >= currentList.itemOrder.count)) else {return}
+        guard !(currentList.items.count == 0) else { return }
+        guard !(orderIndex >= currentList.itemOrder.count) else { return }
         
-        
-        // we're going to do things in order of safely (to protect against indexOutOfBounds or something, in case another thread is accessing the data concurrently)
         let itemIndex = allLists.lists[allLists.currentList].itemOrder[orderIndex]
-        // decrement all item indices  above the itemIdex to avoid outOfBounds, since we're about to remove one
+        
         let adjustedNumbers = allLists.lists[allLists.currentList].itemOrder.map { $0 > itemIndex ? $0 - 1 : $0 }
         
-        //avoiding indexOutOfBounds
-        if (allLists.lists[allLists.currentList].currentItem == currentList.items.count-1) {
+        if (allLists.lists[allLists.currentList].currentItem == currentList.items.count - 1) {
             allLists.lists[allLists.currentList].currentItem -= 1
         }
         
-        // now let's remove the itemOrder index
         allLists.lists[allLists.currentList].itemOrder = adjustedNumbers
         allLists.lists[allLists.currentList].itemOrder.remove(at: orderIndex)
-        //and finally remove the item
         allLists.lists[allLists.currentList].items.remove(at: itemIndex)
-        
-        
     }
     
     // handles reordering of items, takes one at a time
@@ -217,28 +264,23 @@ class OTDViewModel: ObservableObject {
     }
     
     func realignItems() {
-        // Ensure the current list is valid
-        guard allLists.lists.indices.contains(allLists.currentList) else { return }
+        guard allLists.lists.indices.contains(allLists.currentList) else {
+            print("Guard triggered ( realignItems() )")
+            return
+        }
         
-        // Reference to the current list
-        let currentList = allLists.lists[allLists.currentList]
-        
-        // Ensure itemOrder is valid and matches the number of items
-        guard currentList.itemOrder.count == currentList.items.count else {
+        let cList = allLists.lists[allLists.currentList]
+        guard cList.itemOrder.count == cList.items.count else {
             print("Mismatch between itemOrder and items count. Cannot realign.")
             return
         }
         
-        // Create a new items array based on the order in itemOrder
-        let reorderedItems = currentList.itemOrder.compactMap { index in
-            // Ensure index is within bounds
-            currentList.items.indices.contains(index) ? currentList.items[index] : nil
+        let reorderedItems = cList.itemOrder.compactMap { index in
+            cList.items.indices.contains(index) ? cList.items[index] : nil
         }
         
-        // Update the items array in the current list
         allLists.lists[allLists.currentList].items = reorderedItems
     }
-    
     
     /// Moves to the next item in the current list (wrap around)
     func nextItem() {
@@ -254,7 +296,7 @@ class OTDViewModel: ObservableObject {
         let itemCount = currentList.items.count
         guard itemCount > 0 else { return }
         var prevIndex = (allLists.lists[allLists.currentList].currentItem - 1)
-        if (prevIndex < 0) {prevIndex += itemCount}
+        if (prevIndex < 0) { prevIndex += itemCount }
         allLists.lists[allLists.currentList].currentItem = prevIndex
         print("previous item: \(prevIndex)")
     }
@@ -267,8 +309,7 @@ class OTDViewModel: ObservableObject {
         }
         var nextIndex = (allLists.currentList + 1) % allLists.lists.count
         while (!allLists.lists[nextIndex].isVisible) {
-            nextIndex = (nextIndex + 1)
-            nextIndex %= allLists.lists.count
+            nextIndex = (nextIndex + 1) % allLists.lists.count
         }
         allLists.currentList = nextIndex
         print("next list: \(nextIndex)")
@@ -283,11 +324,11 @@ class OTDViewModel: ObservableObject {
         }
         
         var prevIndex = (allLists.currentList - 1)
-        if (prevIndex < 0) {prevIndex += listCount}
+        if (prevIndex < 0) { prevIndex += listCount }
         
         while (!allLists.lists[prevIndex].isVisible) {
             prevIndex = (prevIndex - 1)
-            if (prevIndex < 0) {prevIndex += listCount}
+            if (prevIndex < 0) { prevIndex += listCount }
         }
         
         allLists.currentList = prevIndex
@@ -305,90 +346,97 @@ class OTDViewModel: ObservableObject {
     func removeList(at index: Int) {
         print("list to remove ", index)
         allLists.lists[index].isVisible = false
-        //there are simpler ways to write this logic, but this way is easiest for me to understand
+        
+        // If a list is removed while notifications are on, disable them
+        if allLists.lists[index].notificationsOn {
+            allLists.lists[index].disableNotifications()
+        }
   
-        // Find another visible list to set as currentList
         if let newCurrentIndex = allLists.lists.firstIndex(where: { $0.isVisible }) {
             allLists.currentList = newCurrentIndex
-            if allLists.currentList >= index {allLists.currentList -= 1}
-            
+            if allLists.currentList >= index {
+                allLists.currentList -= 1
+            }
         } else {
-            // If no visible lists are found, set currentList to -1
             allLists.currentList = -1
         }
         
-        
         print("current list after removal: ", allLists.currentList)
-        
         allLists.lists.remove(at: index)
     }
     
-    // source and destination are the exact indices of the items location
     func moveList(from source: IndexSet, to destination: Int) {
-
-        // Move the list items without touching currentList
         allLists.lists.move(fromOffsets: source, toOffset: destination)
         
-        if allLists.currentList == -1 {
-            return // No work needed
-        }
+        let sourceIndex = source.first!
+        let destinationIndex = (destination > sourceIndex) ? (destination - 1) : destination
         
-        //To make the rest of the function simpler, I'm making source = starting index, and destionation = the ending index exactly. Otherwise destination's value changes when it's moving up/down and it would require a lot more if/then logic.
-        let sourceIndex: Int = source.first!
-        let adjustedDestination = destination > sourceIndex ? destination - 1 : destination
+        print("move src/dst ", sourceIndex, "/", destinationIndex, "  --  curr ", allLists.currentList)
         
-        print("move src/dst ", sourceIndex, "/", adjustedDestination, "  --  curr ", allLists.currentList)
+        if allLists.currentList == -1 { return }
         
-        // if the moved list is the currentList
+        // If the moved list is the currentList
         if (allLists.currentList == sourceIndex) {
-            print("moved current list")
-            allLists.currentList = adjustedDestination
+            print("moved currentList")
+            allLists.currentList = destinationIndex
         }
-        
-        // if the currentList's index changed
-        else if (allLists.currentList <= adjustedDestination && allLists.currentList >= sourceIndex) {
-            print("updating current list")
-            // if it needs to increase
-            if (sourceIndex > adjustedDestination) { // the item was moved up
+        // If the currentList's index changed
+        else if (allLists.currentList <= destinationIndex && allLists.currentList >= sourceIndex) {
+            print("incrementing current list")
+            if (sourceIndex > destinationIndex) {
+                // the item was moved up
                 allLists.currentList += 1
-            }
-            if (sourceIndex < adjustedDestination) { //the item was moved down
+            } else if (sourceIndex < destinationIndex) {
+                // the item was moved down
                 allLists.currentList -= 1
             }
         }
-        
-        
-        // If currentList is not in the moved range, it remains unchanged.
-        print(allLists.currentList)
     }
-
     
     func toggleShuffle() {
         allLists.lists[allLists.currentList].isShuffled.toggle()
     }
     
-    /// Toggles the visibility of a specific list
+    // MARK: - Refactored toggleVisibility
+    
+    /// Toggles the visibility of a specific list, and handles notifications properly.
     func toggleVisibility(for list: OTDList) {
         guard let index = allLists.lists.firstIndex(where: { $0.id == list.id }) else {
-            print("List not found ( toggleVisibility() )")
-            return }
+            print("List not found in toggleVisibility()")
+            return
+        }
         
-        // Toggle visibility
+        // Flip isVisible
         allLists.lists[index].isVisible.toggle()
         
-        if allLists.currentList == -1 {
+        // If we’re hiding the list, disable notifications if they were on
+        if !allLists.lists[index].isVisible {
+            if allLists.lists[index].notificationsOn {
+                allLists.lists[index].disableNotifications()
+            }
+        }
+        // If we’re making the list visible again and notificationsOn is true, re-enable them
+        else {
+            if allLists.lists[index].notificationsOn {
+                allLists.lists[index].enableNotifications()
+            }
+        }
+
+        // If no list is currently selected, pick this one as the new current if we just made it visible
+        if allLists.currentList == -1, allLists.lists[index].isVisible {
             allLists.currentList = index
         }
         
-        // If the toggled list is the active list and it's now invisible, switch to next visible list or set to -1
+        // If the toggled list was active, but we just made it invisible, move to the next visible list
         if allLists.currentList == index && !allLists.lists[index].isVisible {
-            let previousIndex = allLists.currentList
-            let switched = switchToNextVisible(from: previousIndex)
+            let switched = switchToNextVisible(from: index)
             if !switched {
+                // If we fail to find another visible list
                 allLists.currentList = -1
             }
         }
     }
+    
     /// Helper function to switch to next visible list from a given index
     private func switchToNextVisible(from index: Int) -> Bool {
         let listCount = allLists.lists.count
@@ -408,94 +456,42 @@ class OTDViewModel: ObservableObject {
         // No other visible list found
         return false
     }
-    
-    /// Notifications functions
-    func enablePushNotificationsCurrentList() {
-        let currentList = allLists.lists[allLists.currentList]
-        guard currentList.notificationsOn,
-              let notificationTime = currentList.notificationTime else {
-            print("Redundancy check failed: enablePush called when notifications are off, or notificationTime is not set.")
-            return
-        }
-        
-        // Schedule the notification
-        let content = UNMutableNotificationContent()
-        
-        // There are shorter ways to write this logic, but this is easiest to read.
-        if (currentList.items[currentList.currentItem].header != nil && currentList.items[currentList.currentItem].body != nil ) {
-            content.title = currentList.items[currentList.currentItem].header ?? ""
-            content.body = currentList.items[currentList.currentItem].body ?? ""
-        }
-        else if (currentList.items[currentList.currentItem].header == nil && currentList.items[currentList.currentItem].body != nil ) {
-            content.title = currentList.title
-            content.body = currentList.items[currentList.currentItem].body ?? ""
-        }
-        else if (currentList.items[currentList.currentItem].header != nil && currentList.items[currentList.currentItem].body == nil ) {
-            content.title = currentList.title
-            content.body = currentList.items[currentList.currentItem].header ?? ""
-        }
-        
-        let calendar = Calendar.current
-        var dateComponents = calendar.dateComponents([.hour, .minute], from: notificationTime)
-        dateComponents.timeZone = TimeZone.current
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(identifier: currentList.id.uuidString, content: content, trigger: trigger)
-        
-        notificationCenter.add(request) { error in
-            if let error = error {
-                print("Error scheduling notification: \(error.localizedDescription)")
-            } else {
-                print("Notification scheduled for list \(currentList.title).")
-            }
-        }
-    }
-        
-    func disablePushNotificationsCurrentList() {
-        let currentList = allLists.lists[allLists.currentList]
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: [currentList.id.uuidString])
-        print("Notifications disabled for list \(currentList.title).")
-    }
-    
-    // The midnight functions tell the app to update the current items when the phone's clock hits midnight, even if the app isn't open
+
+    // The midnight functions tell the app to update the current items
+    // when the phone's clock hits midnight, even if the app isn't open
     func scheduleMidnightUpdate() {
-            let request = BGAppRefreshTaskRequest(identifier: "com.kai.oftheday")
-            
-            // Schedule the task to run no earlier than midnight
-            let calendar = Calendar.current
-            let now = Date()
-            if let nextMidnight = calendar.nextDate(after: now, matching: DateComponents(hour: 14, minute: 45), matchingPolicy: .strict) {
-                request.earliestBeginDate = nextMidnight
-            }
-            
-            do {
-                try BGTaskScheduler.shared.submit(request)
-                print("Successfully scheduled midnight update.")
-            } catch {
-                print("Failed to schedule midnight update: \(error.localizedDescription)")
+        let request = BGAppRefreshTaskRequest(identifier: "com.kai.oftheday")
+        
+        // Example here: set earliestBeginDate to tomorrow at a specific time (or midnight, etc.)
+        let calendar = Calendar.current
+        let now = Date()
+        if let nextMidnight = calendar.nextDate(after: now,
+                                                matching: DateComponents(hour: 0, minute: 0),
+                                                matchingPolicy: .strict) {
+            request.earliestBeginDate = nextMidnight
+        }
+        
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("Successfully scheduled midnight update.")
+        } catch {
+            print("Failed to schedule midnight update: \(error.localizedDescription)")
+        }
+    }
+
+    func handleMidnightUpdate(task: BGAppRefreshTask) {
+        // Re-schedule next update
+        scheduleMidnightUpdate()
+
+        // Example midnight logic: simply increment each list’s currentItem
+        for i in 0..<allLists.lists.count {
+            let count = allLists.lists[i].items.count
+            if count > 0 {
+                allLists.lists[i].currentItem = (allLists.lists[i].currentItem + 1) % count
             }
         }
-
-        func handleMidnightUpdate(task: BGAppRefreshTask) {
-            // Schedule the next update
-            scheduleMidnightUpdate()
-
-            // Perform the update
-//            allLists.updateAllLists()
-            
-            // this block is for testing, instead of the previous line
-            
-            
-            for i in 0..<allLists.lists.count {
-                allLists.lists[i].currentItem = (allLists.lists[i].currentItem + 1) % allLists.lists[i].items.count
-            }
-                
-            
-            
-            print("Midnight update performed.")
-            
-            // Complete the task
-            task.setTaskCompleted(success: true)
-        }
-    
+        
+        print("Midnight update performed.")
+        task.setTaskCompleted(success: true)
+    }
 }
