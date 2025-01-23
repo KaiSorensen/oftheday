@@ -92,7 +92,7 @@ struct OTDList: Identifiable, Codable, Equatable {
             // saving the current item/list so pressing the notification can open back to it later
             content.userInfo = [
                 "listID": id.uuidString,
-                "itemIndex": currentItem
+                "itemIndex": items[currentItem].id.uuidString
             ]
             
             var dateComponents = Calendar.current.dateComponents([.hour, .minute], from: notificationTime)
@@ -307,17 +307,22 @@ class OTDViewModel: ObservableObject {
         print("previous item: \(prevIndex)")
     }
     
-    func openList(uuid: UUID, itemIndex: Int) {
-        // Find which list has this UUID
-        guard let index = allLists.lists.firstIndex(where: { $0.id == uuid }) else {
+    func openListItem(listID: UUID, itemID: UUID) {
+        
+        // switch to that list, if exists
+        guard let listIndex = allLists.lists.firstIndex(where: { $0.id == listID }) else {
             return
         }
         // Switch to that list
-        allLists.currentList = index
-        // Switch to the correct item
-        allLists.lists[index].currentItem = itemIndex
+        allLists.currentList = listIndex
+
+        // switch to that item, if still exists
+        guard let itemIndex = allLists.lists[listIndex].items.firstIndex(where: { $0.id == itemID }) else {
+            return
+        }
+        allLists.lists[listIndex].currentItem = itemIndex
         
-        print("Switched to list \(index) and item \(itemIndex)")
+        print("Switched to list \(listIndex) and item \(itemIndex)")
     }
     
     /// Moves to the next list (wrap around)
