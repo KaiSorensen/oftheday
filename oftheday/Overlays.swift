@@ -110,7 +110,11 @@ struct ListManagementOverlay: View {
                             showDeleteConfirmation = true
                         }
                     }
-                    .onMove(perform: viewModel.moveList)
+                    .onMove { source, destination in            
+                        // Reorder the *itemOrder* array
+                        viewModel.moveList(from: source, to: destination)
+                       
+                    }
                 }
                 .listStyle(PlainListStyle())
                 

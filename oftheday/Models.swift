@@ -323,9 +323,45 @@ class OTDViewModel: ObservableObject {
         allLists.lists.remove(at: index)
     }
     
+    // source and destination are the exact indices of the items location
     func moveList(from source: IndexSet, to destination: Int) {
+
+        // Move the list items without touching currentList
         allLists.lists.move(fromOffsets: source, toOffset: destination)
+        
+        if allLists.currentList == -1 {
+            return // No work needed
+        }
+        
+        //To make the rest of the function simpler, I'm making source = starting index, and destionation = the ending index exactly. Otherwise destination's value changes when it's moving up/down and it would require a lot more if/then logic.
+        let sourceIndex: Int = source.first!
+        let adjustedDestination = destination > sourceIndex ? destination - 1 : destination
+        
+        print("move src/dst ", sourceIndex, "/", adjustedDestination, "  --  curr ", allLists.currentList)
+        
+        // if the moved list is the currentList
+        if (allLists.currentList == sourceIndex) {
+            print("moved current list")
+            allLists.currentList = adjustedDestination
+        }
+        
+        // if the currentList's index changed
+        else if (allLists.currentList <= adjustedDestination && allLists.currentList >= sourceIndex) {
+            print("updating current list")
+            // if it needs to increase
+            if (sourceIndex > adjustedDestination) { // the item was moved up
+                allLists.currentList += 1
+            }
+            if (sourceIndex < adjustedDestination) { //the item was moved down
+                allLists.currentList -= 1
+            }
+        }
+        
+        
+        // If currentList is not in the moved range, it remains unchanged.
+        print(allLists.currentList)
     }
+
     
     func toggleShuffle() {
         allLists.lists[allLists.currentList].isShuffled.toggle()
