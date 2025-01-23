@@ -304,12 +304,13 @@ class OTDViewModel: ObservableObject {
     
     func removeList(at index: Int) {
         print("list to remove ", index)
-        allLists.lists[index].isVisible.toggle()
+        allLists.lists[index].isVisible = false
         //there are simpler ways to write this logic, but this way is easiest for me to understand
   
         // Find another visible list to set as currentList
         if let newCurrentIndex = allLists.lists.firstIndex(where: { $0.isVisible }) {
             allLists.currentList = newCurrentIndex
+            if allLists.currentList >= index {allLists.currentList -= 1}
             
         } else {
             // If no visible lists are found, set currentList to -1
