@@ -4,9 +4,10 @@
 //
 //  Created by user268370 on 1/18/25.
 //
-
+import SwiftUI
 import UserNotifications
 
+// helper methods
 struct Notifications {
     
     static func requestNotificationAuthorization(completion: @escaping (Bool) -> Void) {
@@ -26,4 +27,49 @@ struct Notifications {
         }
     }
 
+}
+
+
+
+// for when push-notifications are pressed
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        
+        // Make this object the notification center delegate so we can capture user taps
+        UNUserNotificationCenter.current().delegate = self
+        
+        return true
+    }
+    
+    /// Called when the user taps on a notification and the app opens (or when the app is in the foreground).
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+        
+        // Extract the data we embedded in userInfo
+        if let listIDString = userInfo["listID"] as? String,
+           let itemIndex = userInfo["itemIndex"] as? Int,
+           let uuid = UUID(uuidString: listIDString) {
+            
+            // Post a custom notification that we’ll pick up in SwiftUI.
+            NotificationCenter.default.post(
+                name: .didReceiveOTDNotification,
+                object: nil,
+                userInfo: ["listUUID": uuid, "itemIndex": itemIndex]
+            )
+        }
+        
+        completionHandler()
+    }
+}
+
+extension Notification.Name {
+    static let didReceiveOTDNotification = Notification.Name("didReceiveOTDNotification")
 }

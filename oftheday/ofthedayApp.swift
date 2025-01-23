@@ -10,6 +10,7 @@ import BackgroundTasks
 
 @main
 struct OfTheDayApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var viewModel = OTDViewModel()
     
     var body: some Scene {

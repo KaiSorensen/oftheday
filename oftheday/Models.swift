@@ -88,6 +88,12 @@ struct OTDList: Identifiable, Codable, Equatable {
                 content.title = currentTitle
                 content.body  = "No content available."
             }
+        
+            // saving the current item/list so pressing the notification can open back to it later
+            content.userInfo = [
+                "listID": id.uuidString,
+                "itemIndex": currentItem
+            ]
             
             var dateComponents = Calendar.current.dateComponents([.hour, .minute], from: notificationTime)
             dateComponents.timeZone = TimeZone.current
@@ -301,6 +307,19 @@ class OTDViewModel: ObservableObject {
         print("previous item: \(prevIndex)")
     }
     
+    func openList(uuid: UUID, itemIndex: Int) {
+        // Find which list has this UUID
+        guard let index = allLists.lists.firstIndex(where: { $0.id == uuid }) else {
+            return
+        }
+        // Switch to that list
+        allLists.currentList = index
+        // Switch to the correct item
+        allLists.lists[index].currentItem = itemIndex
+        
+        print("Switched to list \(index) and item \(itemIndex)")
+    }
+    
     /// Moves to the next list (wrap around)
     func nextList() {
         guard !allLists.lists.isEmpty, allLists.currentList != -1 else {
@@ -346,6 +365,8 @@ class OTDViewModel: ObservableObject {
     func removeList(at index: Int) {
         print("list to remove ", index)
         allLists.lists[index].isVisible = false
+        allLists.lists[index].disableNotifications() // I don't want to know what happens if I don't do this. We'll find out in post-testing.
+        
         
         // If a list is removed while notifications are on, disable them
         if allLists.lists[index].notificationsOn {
