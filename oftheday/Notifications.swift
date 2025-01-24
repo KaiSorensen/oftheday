@@ -54,15 +54,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let userInfo = response.notification.request.content.userInfo
         
         // Extract the data we embedded in userInfo
-        if let listIDString = userInfo["listID"] as? String,
-           let itemIndex = userInfo["itemIndex"] as? Int,
-           let uuid = UUID(uuidString: listIDString) {
+        if let listIDString = userInfo["listIDstring"] as? String,
+           let itemIDString = userInfo["itemIDstring"] as? String,
+           let listUUID = UUID(uuidString: listIDString),
+           let itemUUID = UUID(uuidString: itemIDString){
             
             // Post a custom notification that we’ll pick up in SwiftUI.
             NotificationCenter.default.post(
                 name: .didReceiveOTDNotification,
                 object: nil,
-                userInfo: ["listUUID": uuid, "itemIndex": itemIndex]
+                userInfo: ["listUUID": listUUID, "itemUUID": itemUUID]
             )
         }
         
