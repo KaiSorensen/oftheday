@@ -165,15 +165,9 @@ struct EditListView: View {
                     if isAddingNewItem {
                         // Present EditItemView for adding a new item
                         EditItemView(item: $newItem, didConfirm: $didConfirm)
-                    } else if let oIndex = editingOrderIndex,
-                              currentList.itemOrder.indices.contains(oIndex) {
+                    } else {
                         // Present EditItemView for editing an existing item
                         EditItemView(item: $editingItem, didConfirm: $didConfirm)
-                    } else {
-                        // Fallback
-                        Text("Unable to edit item.")
-                            .foregroundColor(.secondary)
-                            .padding()
                     }
                 }
             } else {

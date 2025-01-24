@@ -11,11 +11,15 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var viewModel: OTDViewModel
-    
+        
     @Binding var showWidgetSettings: Bool
     @Binding var showMainMenu: Bool
     
+    @State private var showTimePicker = false
     @State private var showEditListSheet = false
+    
+    @State private var askedForNotifications = false
+    @State private var notificationsEnabled = false
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -69,6 +73,31 @@ struct HomeView: View {
                             viewModel.toggleShuffle()
                         }) {
                             Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
+                                .font(.title2)
+                        }
+
+                        Button(action: {
+                            if viewModel.currentList.notificationsOn {
+                                viewModel.allLists.lists[viewModel.allLists.currentList].notificationsOn = false
+
+                                viewModel.allLists.lists[viewModel.allLists.currentList].disableNotifications()
+                                
+                            } else {
+                                Notifications.checkNotificationSettings { enabled in
+                                    if enabled {
+                                        notificationsEnabled = true
+                                    } else {
+                                        Notifications.requestNotificationAuthorization { granted in
+                                            if granted {notificationsEnabled = true}
+                                        }
+
+                                    }
+                                }
+                                
+                                showTimePicker = true
+                            }
+                        }) {
+                            Image(systemName: viewModel.currentList.notificationsOn ? "bell.circle.fill" : "bell.circle")
                                 .font(.title2)
                         }
                         
@@ -130,6 +159,13 @@ struct HomeView: View {
                 
             }
         }
+        .overlay(
+            ZStack {
+                if showTimePicker {
+                    TimePickerOverlay(viewModel: viewModel, showOverlay: $showTimePicker, notificationsEnabled: $notificationsEnabled)
+                }
+            }
+        )
         // Present the edit list sheet
         .sheet(isPresented: $showEditListSheet) {
             EditListView(viewModel: viewModel, isPresented: $showEditListSheet)

@@ -35,6 +35,15 @@ struct ContentView: View {
                 }
             }
         )
+        .onReceive(NotificationCenter.default.publisher(for: .didReceiveOTDNotification)) { notif in
+            guard let userInfo = notif.userInfo,
+                  let listUUID = userInfo["listUUID"] as? UUID,
+                  let itemUUID = userInfo["itemUUID"] as? UUID else {
+                      return
+                  }
+            // Now tell the ViewModel to open that list and item
+            viewModel.openListItem(listUUID: listUUID, itemUUID: itemUUID)
+        }
     }
 }
 
