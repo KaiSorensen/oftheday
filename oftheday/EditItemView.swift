@@ -15,7 +15,7 @@ struct EditItemView: View {
             Form {
                 // Optional Header
                 Section(header: Text("Title")) {
-                    TextField("Enter title",
+                    TextField("Optional Title",
                               text: Binding(
                                 get: { item.header ?? "" },
                                 set: { item.header = $0.isEmpty ? nil : $0 }

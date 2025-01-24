@@ -239,8 +239,13 @@ class OTDViewModel: ObservableObject {
         if allLists.lists[allLists.currentList].isShuffled {
             let randomIndex = Int.random(in: 0...newIndex)
             allLists.lists[allLists.currentList].itemOrder.insert(newIndex, at: randomIndex)
+            // adjust currentItem to be the same
+            if (randomIndex <= currentList.currentItem) {
+                allLists.lists[allLists.currentList].currentItem += 1
+            }
         } else {
             allLists.lists[allLists.currentList].itemOrder.append(newIndex)
+            //currentItem need not change
         }
         
         allLists.lists[allLists.currentList].items.append(item)
@@ -406,8 +411,12 @@ class OTDViewModel: ObservableObject {
             print("moved currentList")
             allLists.currentList = destinationIndex
         }
-        // If the currentList's index changed
-        else if (allLists.currentList <= destinationIndex && allLists.currentList >= sourceIndex) {
+        // if currentList is between the source & destination (inclusive), then it needs to be incremented one way or the other
+        else if (
+            (allLists.currentList <= destinationIndex && allLists.currentList >= sourceIndex)
+                 ||
+            (allLists.currentList >= destinationIndex && allLists.currentList <= sourceIndex)
+        ) {
             print("incrementing current list")
             if (sourceIndex > destinationIndex) {
                 // the item was moved up
