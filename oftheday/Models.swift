@@ -13,7 +13,21 @@ struct OTDItem: Identifiable, Codable, Equatable {
     var id = UUID()
     var header: String?
     var body: String?
-    var imageName: String?  // For future image support
+    var imageName: String?
+    
+    var isEmpty: Bool {
+        header == nil && body == nil && imageName == nil
+    }
+    
+    func printItem() {
+        print("Item:")
+        if let h = header {
+            print("header: ", h)
+        }
+        if let b = body {
+            print("body: ", b)
+        }
+    }
 }
 
 /// Represents a list of "Of The Day" items, with user settings
@@ -234,6 +248,8 @@ class OTDViewModel: ObservableObject {
     }
 
     func addItem(item: OTDItem) {
+        print("addingItem")
+        item.printItem()
         let newIndex = allLists.lists[allLists.currentList].items.count
         
         if allLists.lists[allLists.currentList].isShuffled {
@@ -267,6 +283,14 @@ class OTDViewModel: ObservableObject {
     // handles reordering of items, takes one at a time
     func moveItem(source: IndexSet, destination: Int) {
         allLists.lists[allLists.currentList].itemOrder.move(fromOffsets: source, toOffset: destination)
+    }
+    
+    func updateItem(at orderIndex: Int, with item: OTDItem) {
+        guard allLists.lists.indices.contains(allLists.currentList),
+              allLists.lists[allLists.currentList].itemOrder.indices.contains(orderIndex) else { return }
+        
+        let itemIndex = allLists.lists[allLists.currentList].itemOrder[orderIndex]
+        allLists.lists[allLists.currentList].items[itemIndex] = item
     }
     
     func realignItems() {
