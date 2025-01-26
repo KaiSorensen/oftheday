@@ -286,6 +286,7 @@ class OTDViewModel: ObservableObject {
         
         if (allLists.lists[allLists.currentList].items.isEmpty) {
             allLists.lists[allLists.currentList].disableNotifications()
+            allLists.lists[allLists.currentList].notificationsOn = false
         }
     }
     
