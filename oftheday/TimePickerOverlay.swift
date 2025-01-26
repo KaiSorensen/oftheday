@@ -30,7 +30,11 @@ struct TimePickerOverlay: View {
                 if !notificationsEnabled {
                     Text("Notifications for this app are disabled.")
                         .font(.system(size: 40))
-                } else {
+                } else if (viewModel.currentList.items.isEmpty) {
+                    Text("What would I tell you?")
+                        .font(.system(size: 40))
+                }
+                else {
                     
                     Text("Set Daily \(viewModel.currentList.title)")
                         .font(.headline)

@@ -74,7 +74,7 @@ struct OTDList: Identifiable, Codable, Equatable {
     /// Schedules a daily notification for this list’s current item, if notificationsOn == true and list is visible.
     /// We pass in the notification center from outside for clarity.
     mutating func enableNotifications() {
-            guard notificationsOn, isVisible, let notificationTime = notificationTime else {
+        guard notificationsOn, isVisible, !items.isEmpty, let notificationTime = notificationTime else {
                 return
             }
             
@@ -82,6 +82,8 @@ struct OTDList: Identifiable, Codable, Equatable {
             disableNotifications()
             
             let content = UNMutableNotificationContent()
+        
+        print("enabling notifs for item", currentItem)
             
             let currentTitle = title
             let currentHeader = items[currentItem].header
@@ -260,6 +262,9 @@ class OTDViewModel: ObservableObject {
         }
         
         allLists.lists[allLists.currentList].items.append(item)
+        if allLists.lists[allLists.currentList].currentItem == -1 {
+            allLists.lists[allLists.currentList].currentItem = 0
+        }
     }
     
     // PARAM - index of the itemOrder, not the index of the item
@@ -278,6 +283,10 @@ class OTDViewModel: ObservableObject {
         allLists.lists[allLists.currentList].itemOrder = adjustedNumbers
         allLists.lists[allLists.currentList].itemOrder.remove(at: orderIndex)
         allLists.lists[allLists.currentList].items.remove(at: itemIndex)
+        
+        if (allLists.lists[allLists.currentList].items.isEmpty) {
+            allLists.lists[allLists.currentList].disableNotifications()
+        }
     }
     
     // handles reordering of items, takes one at a time
