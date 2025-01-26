@@ -66,7 +66,7 @@ struct EditListView: View {
                         viewModel.moveItem(source: source, destination: destination)
                     }
                 }
-                .navigationTitle("Edit \(currentList.title)")
+                .navigationTitle("\(currentList.title)")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     // Add and Shuffle buttons

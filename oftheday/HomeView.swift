@@ -115,7 +115,7 @@ struct HomeView: View {
                     GeometryReader { geo in
                         // We use a ZStack or similar here so we can apply gesture
                         ZStack {
-                            CardView(item: viewModel.currentItem)
+                            CardView(isListEmpty: viewModel.currentList.items.isEmpty, item: viewModel.currentItem)
                                 .frame(
                                     width: geo.size.width * 0.9,
                                     height: geo.size.height * 0.8
