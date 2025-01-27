@@ -1,22 +1,16 @@
-//
-//  CardView.swift
-//  oftheday
-//
-//  Created by user268370 on 1/12/25.
-//
-
 import SwiftUI
-
-// MARK: - Card View
 
 struct CardView: View {
     var isListEmpty: Bool
     let item: OTDItem
     
+    // Tracks the expanded (full-screen) state
+    @State private var showOpenCard: Bool = false
+    
     var body: some View {
         ZStack {
             // Background
-            if(!isListEmpty) {
+            if !isListEmpty {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(UIColor.secondarySystemBackground))
                     .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 4)
@@ -44,12 +38,23 @@ struct CardView: View {
                     
                     Spacer()
                 }
+                // Open the full-screen card when tapped
+                
             } else {
+                // If list is empty, just show the placeholder
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(UIColor.systemBackground))
+                
                 Text("~ pure potential ~")
                     .multilineTextAlignment(.center)
-             }
+            }
+        }
+        // Present the fullscreen view when showOpenCard is true
+        .fullScreenCover(isPresented: $showOpenCard) {
+            OpenCardView(isPresented: $showOpenCard, item: item)
+        }
+        .onTapGesture {
+            if (!isListEmpty) {showOpenCard = true}
         }
     }
 }
