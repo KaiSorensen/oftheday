@@ -445,8 +445,8 @@ class OTDViewModel: ObservableObject {
          there are two 'between' scenatios: it's between when source>destination, or it's between when destination>source
         */
         else if (allLists.currentList <= destinationIndex && allLists.currentList >= sourceIndex ||
-                 allLists.currentList >= destinationIndex && allLists.currentList <= sourceIndex
-        ) { //bug line            print("incrementing current list")
+                 allLists.currentList >= destinationIndex && allLists.currentList <= sourceIndex) {
+            print("incrementing current list")
             if (sourceIndex > destinationIndex) {
                 // the item was moved up
                 allLists.currentList += 1
