@@ -40,6 +40,12 @@ struct ChipsRowView: View {
                 .frame(minWidth: UIScreen.main.bounds.width)
             }
             .frame(height: 40) // Constrained height
+            .onChange(of: selectedIndex) { oldValue, newValue in
+                // Scroll to the new index whenever selectedIndex changes
+                withAnimation {
+                    scrollProxy.scrollTo(newValue, anchor: .center)
+                }
+            }
         }
     }
 }
