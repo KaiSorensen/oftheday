@@ -361,7 +361,7 @@ class OTDViewModel: ObservableObject {
         let oldImage = allLists.lists[allLists.currentList].items[itemIndex].imageReference
         allLists.lists[allLists.currentList].items[itemIndex].imageReference = imageRef
         
-        return oldImage
+        return oldImage // might be nil
     }
     
     func removeItemImage(at orderIndex: Int) {
@@ -375,7 +375,8 @@ class OTDViewModel: ObservableObject {
     @discardableResult
     func addListImage(imageRef: String) -> String? {
         // Check for duplicate
-        if (allLists.lists[allLists.currentList].imageReferences.contains(imageRef)) {
+        if (currentList.imageReferences.contains(imageRef)) {
+            print("found duplicate - addListImage()")
             return imageRef
         } else {
             allLists.lists[allLists.currentList].imageReferences.append(imageRef)

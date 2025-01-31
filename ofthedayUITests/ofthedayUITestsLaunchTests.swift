@@ -2,7 +2,7 @@
 //  ofthedayUITestsLaunchTests.swift
 //  ofthedayUITests
 //
-//  Created by user268370 on 1/10/25.
+//  Created by Kai Sorensen on 1/10/25.
 //
 
 import XCTest

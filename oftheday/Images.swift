@@ -224,7 +224,11 @@ class ImageTable {
     /// - Parameter image: The UIImage to check.
     /// - Returns: The imageID if it exists, else nil.
     func imageExists(_ image: UIImage) -> String? {
-        guard let hash = image.sha256Hash() else { return nil }
+        guard let squareImage = resizeToSquare(image: image, size: CGSize(width: 500, height: 500)),
+              let hash = squareImage.sha256Hash() else {
+            print("Failed to resize image or compute hash.")
+            return nil
+        }
         return referenceCounts[hash] != nil ? hash : nil
     }
     

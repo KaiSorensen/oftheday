@@ -81,37 +81,33 @@ struct ImageSelectorOverlay: View {
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let uiImage = UIImage(data: data) {
-                    
+                    print("entering applySelectedImages")
                     // Check if the image already exists
                     if let existingImageID = ImageTable.imageTable.imageExists(uiImage) {
-                        
+                        print("exists")
                         // Increment reference count (if it's a duplicate, we'll decrement it later)
                         ImageTable.imageTable.incrementReference(for: existingImageID)
                         
-                        let hash: String = uiImage.sha256Hash() ?? "hash failed"
-                        if (hash == "hash failed") {
-                            print("HASH FAILED BRO")
-                            return
-                        }
                         
-                        var duplicate: String?
-                        
-                        
+
+                        // the lines within the async must occur in order
                         DispatchQueue.main.async {
+                            let decrement: String?
                             if let index = itemIndex {
-                                duplicate = viewModel.addItemImage(at: index, with: hash)
+                                decrement = viewModel.addItemImage(at: index, with: existingImageID)
                             } else {
-                                duplicate = viewModel.addListImage(imageRef: hash)
+                                decrement = viewModel.addListImage(imageRef: existingImageID)
+                            }
+                            // decrement  found
+                            if let dec = decrement {
+                                print("decrementing image")
+                                ImageTable.imageTable.decrementReference(for: dec)
                             }
                         }
-                        
-                        // decrement if duplicate
-                        if let dup = duplicate {
-                            print("duplicate image")
-                            ImageTable.imageTable.decrementReference(for: dup)
-                        }
-                        
-                        print("Image already in use. Incremented reference count.")
+
+                
+                
+                        print("Image already in memory.")
                     } else {
                         // Add new image to ImageTable
                         if let newImageHash = ImageTable.imageTable.addImage(uiImage) {
