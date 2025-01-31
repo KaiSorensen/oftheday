@@ -2,7 +2,7 @@
 //  SettingsOverlay.swift
 //  oftheday
 //
-//  Created by user268370 on 1/12/25.
+//  Created by Kai Sorensen on 1/12/25.
 //
 
 import SwiftUI

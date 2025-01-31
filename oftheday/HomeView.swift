@@ -2,7 +2,7 @@
 //  HomeView.swift
 //  oftheday
 //
-//  Created by user268370 on 1/12/25.
+//  Created by Kai Sorensen on 1/12/25.
 //
 
 import SwiftUI
@@ -115,7 +115,16 @@ struct HomeView: View {
                     GeometryReader { geo in
                         // We use a ZStack or similar here so we can apply gesture
                         ZStack {
-                            CardView(isListEmpty: viewModel.currentList.items.isEmpty, item: viewModel.currentItem)
+                            // if there are images, the image it chooses for an item is based off of its index. It will cycle the images in order, but it will make sure the same image always goes to the same item unless the order changes or the images change.
+                            var imageRef: String? {
+                                let imgRefCount = viewModel.currentList.imageReferences.count
+                                return imgRefCount > 0
+                                    ? viewModel.currentList.imageReferences[viewModel.currentList.currentItem % imgRefCount]
+                                    : nil
+                            }
+
+                            
+                            CardView(isListEmpty: viewModel.currentList.items.isEmpty, item: viewModel.currentItem, imageRef: imageRef)
                                 .frame(
                                     width: geo.size.width * 0.9,
                                     height: geo.size.height * 0.8

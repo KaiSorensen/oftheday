@@ -2,7 +2,7 @@
 //  OpenCardView.swift
 //  oftheday
 //
-//  Created by user268370 on 1/27/25.
+//  Created by Kai Sorensen on 1/27/25.
 //
 
 import SwiftUI

@@ -3,6 +3,7 @@ import SwiftUI
 struct CardView: View {
     var isListEmpty: Bool
     let item: OTDItem
+    let imageRef: String?
     
     // Tracks the expanded (full-screen) state
     @State private var showOpenCard: Bool = false
@@ -14,6 +15,20 @@ struct CardView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(UIColor.secondarySystemBackground))
                     .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 4)
+                
+                if let imageRef = imageRef, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 250) // Ensure it only takes the lower portion of the card
+                        .clipped()
+                } else if let imageRef = item.imageReference, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 250) // Ensure it only takes the lower portion of the card
+                        .clipped()
+                } 
                 
                 VStack {
                     // Title in top-left

@@ -13,10 +13,10 @@ struct OTDItem: Identifiable, Codable, Equatable {
     var id = UUID()
     var header: String?
     var body: String?
-    var imageName: String?
+    var imageReference: String?
     
     var isEmpty: Bool {
-        header == nil && body == nil && imageName == nil
+        header == nil && body == nil && imageReference == nil
     }
     
     func printItem() {
@@ -41,9 +41,13 @@ struct OTDList: Identifiable, Codable, Equatable {
     // User settings
     var isVisible: Bool = true
     var isShuffled: Bool = false
-    
     var notificationsOn: Bool = false
     var notificationTime: Date?
+    // ?? what if list goes inactive then active, will notifs turn back on?
+    
+    // Images
+    var imageReferences: [String] = []
+    
     
     /// Updates the current item if a day has passed since last update.
     mutating func updateCurrentItem() {
@@ -127,7 +131,7 @@ struct OTDList: Identifiable, Codable, Equatable {
             }
         }
         
-        /// Removes pending notifications for this list
+        // ?? used inside function, this is stupid code, please find a better way
         mutating func disableNotifications() {
             NotificationHelper.notificationCenter.removePendingNotificationRequests(withIdentifiers: [id.uuidString])
             print("Notifications disabled for list \(title)")
@@ -144,6 +148,7 @@ struct OTDList: Identifiable, Codable, Equatable {
 struct OTDAllLists: Codable {
     var lists: [OTDList]
     var currentList: Int = 0
+    var maxImagesPerlist: Int = 10
     
     mutating func updateAllLists() {
         for index in 0..<lists.count {
@@ -154,7 +159,8 @@ struct OTDAllLists: Codable {
 
 /// ViewModel to manage an array of OTDLists
 class OTDViewModel: ObservableObject {
-
+    
+    //consider making this a static global variable
     @Published var allLists: OTDAllLists {
         didSet {
             // automatically save whenever changes are made
@@ -219,8 +225,8 @@ class OTDViewModel: ObservableObject {
                 OTDList(
                     title: "Pictures",
                     items: [
-                        OTDItem(header: "Sunset", body: "A beautiful sunset picture", imageName: "sunset-sample"),
-                        OTDItem(header: "Mountains", body: "Majestic mountain view", imageName: "mountain-sample")
+                        OTDItem(header: "Sunset", body: "A beautiful sunset picture", imageReference: "sunset-sample"),
+                        OTDItem(header: "Mountains", body: "Majestic mountain view", imageReference: "mountain-sample")
                     ],
                     itemOrder: [0,1],
                     currentItem: 0
@@ -230,6 +236,7 @@ class OTDViewModel: ObservableObject {
         )
     }
     
+    // ?? currentList/Item should return indices, not values. This is annoying as shit.
     /// The currently selected list (or an empty fallback)
     var currentList: OTDList {
         return allLists.lists[allLists.currentList]
@@ -339,6 +346,49 @@ class OTDViewModel: ObservableObject {
         if (prevIndex < 0) { prevIndex += itemCount }
         allLists.lists[allLists.currentList].currentItem = prevIndex
         print("previous item: \(prevIndex)")
+    }
+    
+    // returns the previous image (even if it was nil, as that's important info for maintaining the image table)
+    @discardableResult
+    func addItemImage(at orderIndex: Int, with imageRef: String) -> String? {
+        guard allLists.lists.indices.contains(allLists.currentList),
+              allLists.lists[allLists.currentList].itemOrder.indices.contains(orderIndex) else {
+            print ("guard triggered at addItemImage()")
+            return nil
+        }
+        
+        let itemIndex = allLists.lists[allLists.currentList].itemOrder[orderIndex]
+        let oldImage = allLists.lists[allLists.currentList].items[itemIndex].imageReference
+        allLists.lists[allLists.currentList].items[itemIndex].imageReference = imageRef
+        
+        return oldImage
+    }
+    
+    func removeItemImage(at orderIndex: Int) {
+        guard allLists.lists.indices.contains(allLists.currentList),
+              allLists.lists[allLists.currentList].itemOrder.indices.contains(orderIndex) else { return }
+        
+        let itemIndex = allLists.lists[allLists.currentList].itemOrder[orderIndex]
+        allLists.lists[allLists.currentList].items[itemIndex].imageReference = nil
+    }
+    // returns a list of imageReferences to be decremented if necessary (in the case that duplicates were added, we'll later offset its increment)
+    @discardableResult
+    func addListImage(imageRef: String) -> String? {
+        // Check for duplicate
+        if (allLists.lists[allLists.currentList].imageReferences.contains(imageRef)) {
+            return imageRef
+        } else {
+            allLists.lists[allLists.currentList].imageReferences.append(imageRef)
+            return nil
+        }
+    }
+    
+    func removeListImage(imageRef: String) {
+        allLists.lists[allLists.currentList].imageReferences.removeAll(where: {$0 == imageRef})
+    }
+    func removeAllListImages () {
+        // Swift will handle the freeing :)
+        allLists.lists[allLists.currentList].imageReferences = []
     }
     
     func openListItem(listUUID: UUID, itemUUID: UUID) {

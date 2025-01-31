@@ -2,7 +2,7 @@
 //  Notifications.swift
 //  oftheday
 //
-//  Created by user268370 on 1/18/25.
+//  Created by Kai Sorensen on 1/18/25.
 //
 import SwiftUI
 import UserNotifications
