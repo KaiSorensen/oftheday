@@ -16,13 +16,13 @@ struct CardView: View {
                     .fill(Color(UIColor.secondarySystemBackground))
                     .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 4)
                 
-                if let imageRef = imageRef, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
+                if let imageRef = item.imageReference, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()
                         .frame(height: 250) // Ensure it only takes the lower portion of the card
                         .clipped()
-                } else if let imageRef = item.imageReference, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
+                } else if let imageRef = imageRef, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()
@@ -66,7 +66,7 @@ struct CardView: View {
         }
         // Present the fullscreen view when showOpenCard is true
         .fullScreenCover(isPresented: $showOpenCard) {
-            OpenCardView(isPresented: $showOpenCard, item: item)
+            OpenCardView(isPresented: $showOpenCard, item: item, imageRef: imageRef)
         }
         .onTapGesture {
             if (!isListEmpty) {showOpenCard = true}
