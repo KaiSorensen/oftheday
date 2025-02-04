@@ -4,19 +4,14 @@ struct EditListView: View {
     @ObservedObject var viewModel: OTDViewModel
     @Binding var isPresented: Bool
     
-    // Controls presentation of add and edit sheets separately
     @State private var showAddItem = false
     @State private var showEditItem = false
     @State private var showListImages = false
     
-    // Indicates if we're currently editing an existing item
     @State private var editingOrderIndex: Int? = nil
-    
-    // Temporary items for adding and editing
     @State private var newItem = OTDItem(header: nil, body: nil, imageReference: nil)
     @State private var editingItem = OTDItem(header: nil, body: nil, imageReference: nil)
     
-    // Tracks if the user confirmed in the sheet
     @State private var didConfirm = false
     
     var body: some View {
@@ -25,13 +20,11 @@ struct EditListView: View {
                 let currentList = viewModel.allLists.lists[viewModel.allLists.currentList]
                 
                 List {
-                    // Display items in the order determined by currentList.itemOrder
                     ForEach(Array(currentList.itemOrder.enumerated()), id: \.element) { (orderIndex, itemIndex) in
-                        // Safety check
                         if currentList.items.indices.contains(itemIndex) {
                             let item = currentList.items[itemIndex]
                             Button {
-                                // Begin editing
+                                // Begin editing this existing item
                                 editingOrderIndex = orderIndex
                                 editingItem = item
                                 didConfirm = false
@@ -57,41 +50,36 @@ struct EditListView: View {
                         }
                     }
                     .onDelete { offsets in
-                        // Remove items based on displayed offsets
                         for offset in offsets {
                             viewModel.removeItem(orderIndex: offset)
                         }
                     }
                     .onMove { source, destination in
-                        // Reorder the itemOrder array
                         viewModel.moveItem(source: source, destination: destination)
                     }
                 }
                 .navigationTitle("\(currentList.title)")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    // Add and Shuffle buttons
                     ToolbarItem(placement: .navigationBarLeading) {
                         HStack {
                             Button {
-                                // Initiate adding a new item
                                 newItem = OTDItem(header: nil, body: nil, imageReference: nil)
                                 didConfirm = false
                                 showAddItem = true
                             } label: {
                                 Image(systemName: "plus")
                             }
-                            
                             Button {
                                 viewModel.toggleShuffle()
                             } label: {
-                                Image(systemName: viewModel.currentList.isShuffled ? "shuffle.circle.fill" : "shuffle.circle")
+                                Image(systemName: viewModel.currentList.isShuffled
+                                      ? "shuffle.circle.fill"
+                                      : "shuffle.circle")
                                     .font(.title2)
                             }
                         }
                     }
-                    
-                    // “Done” or “Close” button
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack {
                             Button {
@@ -99,37 +87,42 @@ struct EditListView: View {
                             } label: {
                                 Image(systemName: "photo")
                             }
-                                                    
                             Button {
                                 isPresented = false
                             } label: {
                                 Image(systemName: "xmark")
                             }
                         }
-                        
                     }
-                    
-                    // EditButton for SwiftUI’s .onMove
                     ToolbarItem(placement: .bottomBar) {
                         EditButton()
                     }
                 }
-                // Sheet for editing list images
-                .sheet(isPresented: $showListImages, content: {
-                    ListImagesView(viewModel: viewModel, maxSelectedImages: (viewModel.allLists.maxImagesPerlist - viewModel.currentList.imageReferences.count))
-                })
-                
-                // Sheet for Adding a New Item
+                .sheet(isPresented: $showListImages) {
+                    ListImagesView(
+                        viewModel: viewModel,
+                        maxSelectedImages: (
+                            viewModel.allLists.maxImagesPerlist
+                            - viewModel.currentList.imageReferences.count
+                        )
+                    )
+                }
+                // No onDismiss here for the add-item sheet:
                 .sheet(isPresented: $showAddItem, onDismiss: handleAddItemDismiss) {
                     EditItemView(item: $newItem, didConfirm: $didConfirm)
                 }
-                // Sheet for Editing an Existing Item
-                .sheet(isPresented: $showEditItem, onDismiss: handleEditItemDismiss) {
+                // For editing existing items, do NOT use onDismiss; we'll observe showEditItem changes.
+                .sheet(isPresented: $showEditItem) {
                     EditItemView(item: $editingItem, didConfirm: $didConfirm)
+                }
+                // This block detects when the user truly finishes closing the edit sheet.
+                .onChange(of: showEditItem) { oldValue, newValue in
+                    if oldValue == true && newValue == false {
+                        handleEditItemDismiss()
+                    }
                 }
                 
             } else {
-                // Handle case where the selected list does not exist
                 Text("The selected list does not exist.")
                     .foregroundColor(.secondary)
                     .padding()
@@ -148,37 +141,35 @@ struct EditListView: View {
         }
     }
     
-    // Handle dismissal of Add Item Sheet
     private func handleAddItemDismiss() {
-        if didConfirm,
-           !(newItem.header == nil && newItem.body == nil && newItem.imageReference == nil) {
+        if didConfirm, !(newItem.header == nil && newItem.body == nil && newItem.imageReference == nil) {
             viewModel.addItem(item: newItem)
         }
-        // Reset add-related states
         newItem = OTDItem(header: nil, body: nil, imageReference: nil)
         didConfirm = false
     }
     
-    // Handle dismissal of Edit Item Sheet
     private func handleEditItemDismiss() {
+        // If the user tapped the "Confirm" checkmark in EditItemView:
         if let oIndex = editingOrderIndex, didConfirm {
-            let currListIndex = viewModel.allLists.currentList
-            // Safety check
-            if viewModel.allLists.lists[currListIndex].itemOrder.indices.contains(oIndex) {
-                let itemIndex = viewModel.allLists.lists[currListIndex].itemOrder[oIndex]
-                
-                // If still in range, update or remove
-                if viewModel.allLists.lists[currListIndex].items.indices.contains(itemIndex) {
-                    viewModel.allLists.lists[currListIndex].items[itemIndex] = editingItem
-                    let edited = viewModel.allLists.lists[currListIndex].items[itemIndex]
-                    if edited.header == nil && edited.body == nil && edited.imageReference == nil {
-                        // Remove the item if it's empty
+            let listIndex = viewModel.allLists.currentList
+            if viewModel.allLists.lists[listIndex].itemOrder.indices.contains(oIndex) {
+                let itemIndex = viewModel.allLists.lists[listIndex].itemOrder[oIndex]
+                if viewModel.allLists.lists[listIndex].items.indices.contains(itemIndex) {
+                    // Update the item
+                    viewModel.allLists.lists[listIndex].items[itemIndex] = editingItem
+                    
+                    // If it became entirely empty, remove it
+                    if editingItem.header == nil,
+                       editingItem.body == nil,
+                       editingItem.imageReference == nil {
                         viewModel.removeItem(orderIndex: oIndex)
                     }
                 }
             }
         }
-        // Reset edit-related states
+        
+        // Finally, reset all our editing state so we start fresh next time.
         editingOrderIndex = nil
         editingItem = OTDItem(header: nil, body: nil, imageReference: nil)
         didConfirm = false
