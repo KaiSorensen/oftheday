@@ -7,6 +7,7 @@ struct EditListView: View {
     @State private var showAddItem = false
     @State private var showEditItem = false
     @State private var showListImages = false
+    @State private var showParser = false
     
     @State private var editingOrderIndex: Int? = nil
     @State private var newItem = OTDItem(header: nil, body: nil, imageReference: nil)
@@ -83,6 +84,11 @@ struct EditListView: View {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         HStack {
                             Button {
+                                showParser = true
+                            } label: {
+                                Image(systemName: "star.fill")
+                            }
+                            Button {
                                 showListImages = true
                             } label: {
                                 Image(systemName: "photo")
@@ -97,6 +103,9 @@ struct EditListView: View {
                     ToolbarItem(placement: .bottomBar) {
                         EditButton()
                     }
+                }
+                .sheet(isPresented: $showParser)  {
+                    ParserView(isPresented: $showParser)
                 }
                 .sheet(isPresented: $showListImages) {
                     ListImagesView(

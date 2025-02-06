@@ -33,7 +33,7 @@ struct OpenCardView: View {
                 // Overlaying a semi-transparent background to improve text visibility
 //                Color.black.opacity(0.3)
 //                    .edgesIgnoringSafeArea(.all)
-//                
+//                                    vc   c
                 ScrollView {
                     VStack(alignment: .center, spacing: 20) {
                         // Full Title
