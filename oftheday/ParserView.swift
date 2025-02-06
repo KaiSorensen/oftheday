@@ -70,7 +70,7 @@ struct ParserView: View {
     }
 }
 
-// MARK: - CustomTextEditor (Mimics SwiftUI TextEditor)
+// MARK: - CustomTextEditor (Fixes Placeholder Issue)
 
 struct CustomTextEditor: UIViewRepresentable {
     @Binding var text: String
@@ -80,7 +80,7 @@ struct CustomTextEditor: UIViewRepresentable {
     class Coordinator: NSObject, UITextViewDelegate {
         var parent: CustomTextEditor
 
-        init(_ parent: CustomTextEditor) {
+        init(parent: CustomTextEditor) {  // Fix: Correctly initialize parent reference
             self.parent = parent
         }
 
@@ -98,6 +98,7 @@ struct CustomTextEditor: UIViewRepresentable {
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
+            // Remove placeholder when editing starts
             if textView.text == parent.placeholder {
                 textView.text = ""
                 textView.textColor = UIColor.label
@@ -105,6 +106,7 @@ struct CustomTextEditor: UIViewRepresentable {
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
+            // Restore placeholder only if text is empty and keyboard is dismissed
             if textView.text.isEmpty {
                 textView.text = parent.placeholder
                 textView.textColor = UIColor.lightGray
@@ -113,7 +115,7 @@ struct CustomTextEditor: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        return Coordinator(self)
+        return Coordinator(parent: self)  // Fix: Ensure correct parent reference
     }
 
     func makeUIView(context: Context) -> UITextView {
@@ -124,21 +126,25 @@ struct CustomTextEditor: UIViewRepresentable {
         textView.isUserInteractionEnabled = true
         textView.backgroundColor = UIColor.secondarySystemBackground
         textView.font = UIFont.systemFont(ofSize: 18)
-        textView.textColor = text.isEmpty ? UIColor.lightGray : UIColor.label
-        textView.text = text.isEmpty ? placeholder : text
 
-        // Mimic SwiftUI TextEditor margins
+        // Mimic SwiftUI TextEditor
         textView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         textView.layer.cornerRadius = 10
+
+        // Ensure correct placeholder behavior
+        textView.text = text.isEmpty ? placeholder : text
+        textView.textColor = text.isEmpty ? UIColor.lightGray : UIColor.label
 
         return textView
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
-        if text.isEmpty {
+        if text.isEmpty && !textView.isFirstResponder {
+            // Show placeholder when field is empty and not in focus
             textView.text = placeholder
             textView.textColor = UIColor.lightGray
         } else if textView.text != text {
+            // Sync text when not using placeholder
             textView.text = text
             textView.textColor = UIColor.label
         }
