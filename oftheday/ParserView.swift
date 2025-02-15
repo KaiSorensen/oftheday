@@ -669,15 +669,15 @@ class ItemParser {
     private static let catMap: [Character: Category] = {
         var map = [Character: Category]()
         
-        let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        let digits = "0123456789"
+        let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+//        let digits = "0123456789"
         let whitespace = " \t\r"
         let punctuation = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
         let symbols = "€£¥©®™§¶±÷×°"
         let newline = "\n"
         
         for char in letters { map[char] = .letter }
-        for char in digits { map[char] = .digit }
+//        for char in digits { map[char] = .digit }
         for char in whitespace { map[char] = .whitespace }
         for char in punctuation { map[char] = .punctuation }
         for char in symbols { map[char] = .symbol }
@@ -702,15 +702,41 @@ class ItemParser {
             self.catOrder = []
             self.i = 0
             
-            generateCatOrder()
+            generateCatOrder()  
         }
         
         private func generateCatOrder () {
+            var catIndex = -1
             var currCat: Category = .other
+            var isFirstCat = true
             for char in self.separationText {
-                if catOf(char) != currCat {
-                    currCat = catOf(char)
-                    catOrder.append(currCat)
+                let charCat = catOf(char)
+                if charCat != currCat {
+                    currCat = charCat
+                    
+                    // Account for exceptions/rules
+                    if !isFirstCat {
+                        let lastCat = catOrder[catIndex]
+                        
+                        // If the last category is letter, skip whitespace or punctuation.
+                        if lastCat == .letter && (currCat == .whitespace || currCat == .punctuation) {
+                            currCat = .letter
+                            continue
+                        }
+                        // New rule: If the last category is punctuation, skip whitespace.
+                        else if lastCat == .punctuation && currCat == .whitespace {
+                            currCat = .punctuation
+                            continue
+                        }
+                        else {
+                            catOrder.append(currCat)
+                            catIndex += 1
+                        }
+                    } else {
+                        catOrder.append(currCat)
+                        catIndex += 1
+                        isFirstCat = false
+                    }
                 }
             }
         }
@@ -850,56 +876,122 @@ class ItemParser {
     }
     
     private func findDelimiterMatch(startingAt searchPos: Int,
-                                    delim: Delimiter) -> (Int, Int)? {
+                                      delim: Delimiter) -> (Int, Int)? {
         let pattern = delim.catOrder
         if pattern.isEmpty {
-            // If there's no category pattern, treat that as an immediate "0-length" match.
             return (searchPos, searchPos)
         }
         
         let textCount = text.count
-        
-        // We'll attempt to find a substring that exactly matches pattern[0], pattern[1], ...
-        // Because we have to *search* the entire text, we use a naive approach:
-        // from `searchPos` up to `text.count - 1`, we test potential starts.
-        
         var candidateStart = searchPos
         
         while candidateStart < textCount {
             var catIndex = 0
             var pos = candidateStart
             
-            // Try to match each category in the delimiter
-            while catIndex < pattern.count, pos < textCount {
+            print("Trying candidate start at index \(candidateStart)...")
+            
+            // Process each expected category in the delimiter pattern
+            while catIndex < pattern.count && pos < textCount {
                 let neededCat = pattern[catIndex]
                 
-                // We must match *at least one* char of neededCat
-                if ItemParser.catOf(text[text.index(text.startIndex, offsetBy: pos)]) != neededCat {
-                    // no match immediately -> break out
+                // Pre-match skip: skip exception characters
+                while pos < textCount && pos > candidateStart {
+                    let currIndex = text.index(text.startIndex, offsetBy: pos)
+                    let currentChar = text[currIndex]
+                    let currentCat = ItemParser.catOf(currentChar)
                     
+                    let prevIndex = text.index(text.startIndex, offsetBy: pos - 1)
+                    let prevChar = text[prevIndex]
+                    let prevCat = ItemParser.catOf(prevChar)
+                    
+                    // If previous is letter, skip both whitespace and punctuation.
+                    if prevCat == .letter && (currentCat == .whitespace || currentCat == .punctuation) {
+                        print("Skipping exception character '\(currentChar)' at pos \(pos) (whitespace/punctuation after letter)")
+                        pos += 1
+                        continue
+                    }
+                    // If previous is punctuation, skip whitespace.
+                    else if prevCat == .punctuation && currentCat == .whitespace {
+                        print("Skipping exception character '\(currentChar)' at pos \(pos) (whitespace after punctuation)")
+                        pos += 1
+                        continue
+                    }
                     break
                 }
-                // Otherwise, consume all subsequent chars of neededCat
-                repeat {
-                    pos += 1
-                    if pos >= textCount { break }
-                    print("found RIGHT cat: \(ItemParser.catOf(text[text.index(text.startIndex, offsetBy: pos)])) for \(text[text.index(text.startIndex, offsetBy: pos)])")
-                } while ItemParser.catOf(text[text.index(text.startIndex, offsetBy: pos)]) == neededCat
+                
+                // If we've run out of characters, break out.
+                if pos >= textCount { break }
+                
+                let currIndex = text.index(text.startIndex, offsetBy: pos)
+                let currentChar = text[currIndex]
+                let currentCat = ItemParser.catOf(currentChar)
+                
+                if currentCat != neededCat {
+                    print("Mismatch at pos \(pos): found '\(currentChar)' (\(currentCat)) but expected \(neededCat)")
+                    break
+                }
+                
+                print("Matched expected character '\(currentChar)' at pos \(pos) with category \(neededCat)")
+                pos += 1
+                
+                // Consume the entire run of characters matching neededCat.
+                var lastValidCat = currentCat
+                while pos < textCount {
+                    let runIndex = text.index(text.startIndex, offsetBy: pos)
+                    let runChar = text[runIndex]
+                    let runCat = ItemParser.catOf(runChar)
+                    
+                    if runCat == neededCat {
+                        print("Consuming '\(runChar)' at pos \(pos) as part of run for \(neededCat)")
+                        lastValidCat = runCat
+                        pos += 1
+                    }
+                    // Exception: if the run's last valid char was letter, skip whitespace or punctuation.
+                    else if lastValidCat == .letter && (runCat == .whitespace || runCat == .punctuation) {
+                        print("Skipping exception character '\(runChar)' at pos \(pos) after letter in run")
+                        pos += 1
+                    }
+                    // Exception: if the last valid char was punctuation, skip whitespace.
+                    else if lastValidCat == .punctuation && runCat == .whitespace {
+                        print("Skipping exception character '\(runChar)' at pos \(pos) after punctuation in run")
+                        pos += 1
+                    }
+                    else {
+                        break
+                    }
+                }
                 
                 catIndex += 1
             }
             
-            // If we have matched every category in pattern, we succeed
+            // New handling: if we reached the end of the text before consuming all expected categories,
+            // but the remaining expected categories are only whitespace and newline, treat it as a match.
+            if pos >= textCount && catIndex < pattern.count {
+                var allOptional = true
+                for i in catIndex..<pattern.count {
+                    let cat = pattern[i]
+                    if cat != .whitespace && cat != .newline {
+                        allOptional = false
+                        break
+                    }
+                }
+                if allOptional {
+                    print("Reached end-of-text; remaining expected categories are optional. " +
+                          "Delimiter match accepted from index \(candidateStart) to \(pos)")
+                    return (candidateStart, pos)
+                }
+            }
+            
             if catIndex == pattern.count {
-                // The substring [candidateStart ..< pos] is a match
+                print("Delimiter match found from index \(candidateStart) to \(pos)")
                 return (candidateStart, pos)
             }
             
-            // Otherwise, advance candidateStart by 1 and try again
             candidateStart += 1
         }
         
-        // If we can’t match anywhere, return nil
+        print("No delimiter match found.")
         return nil
     }
     
@@ -963,7 +1055,7 @@ class ItemParser {
     }
     
     public func makeItems() -> [OTDItem] {
-        var items: [OTDItem] = []
+        let items: [OTDItem] = []
         return items
     }
 }
