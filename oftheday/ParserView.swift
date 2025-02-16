@@ -20,14 +20,16 @@ extension NSRange {
 
 struct ParserView: View {
     @Binding var isPresented: Bool
+    @ObservedObject var viewModel: OTDViewModel
     
     @State private var text: String = ""
     @State private var selectedRange = NSRange(location: 0, length: 0)
     @State private var previousRange = NSRange(location: 0, length: 0)
     @State private var attributedText: NSAttributedString? = nil
     
-    @State private var blues: [NSRange] = []
-    @State private var oranges: [NSRange] = []
+    @State private var blues: [NSRange] = [] // bodies
+    @State private var oranges: [NSRange] = [] //titles
+    
     @State private var cursorInBlue: Int = -1
     @State private var cursorInOrange: Int = -1
     
@@ -264,9 +266,16 @@ struct ParserView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
+                        if (blues.count > 0 || oranges.count > 0) {
+                            addItemsToList()
+                        }
                         isPresented = false
                     } label: {
-                        Image(systemName: "xmark")
+                        if (blues.count > 0 || oranges.count > 0) {
+                            Image(systemName: "checkmark")
+                        } else {
+                            Image(systemName: "xmark")
+                        }
                     }
                 }
             }
@@ -544,7 +553,121 @@ struct ParserView: View {
         return NSRange(location: start, length: length)
     }
     
+    func extractSection(from text: String, with nsRange: NSRange) -> String? {
+        guard let range = Range(nsRange, in: text) else {
+            // The NSRange does not correspond to a valid range in the string.
+            return nil
+        }
+        return String(text[range])
+    }
+    
+    public func addItemsToList() {
+        var items: [OTDItem] = []
+                
+        self.blues.sort { $0.location < $1.location }
+        self.oranges.sort { $0.location < $1.location }
+        
+        var b = 0
+        var o = 0
+        
+        var newItem = OTDItem(header: nil, body: nil, imageReference: nil)
+        
+        for _ in 0..<(blues.count + oranges.count) {
+            var nextRange: NSRange
+            var nextColor: String
+            
+            if b >= blues.count && o < oranges.count  {
+                nextRange = oranges[o]
+                nextColor = "orange"
+                o += 1
+                print("ORANGE NEXT")
+            } else if o >= oranges.count && b < blues.count {
+                nextRange = blues[b]
+                nextColor = "blue"
+                b += 1
+                print("BLUE NEXT")
+            }
+            else if blues[b].location < oranges[o].location {
+                nextRange = blues[b]
+                nextColor = "blue"
+                b += 1
+                print("BLUE NEXT")
+            } else {
+                nextRange = oranges[o]
+                nextColor = "orange"
+                print("ORANGE NEXT")
+                o += 1
+            }
+            
+            let substr = extractSection(from: text, with: nextRange)
+            print("substr: \(substr ?? "failed")")
+            
+            
+            if (nextColor == "blue") {
+                if (newItem.body != nil) {
+                    items.append(newItem)
+                    print("appending item")
+                    newItem = OTDItem(header: nil, body: nil, imageReference: nil)
+                }
+                newItem.body = substr
+                print("filling body blue")
+                
+            } else if (nextColor == "orange") {
+                if (newItem.header != nil) {
+                    items.append(newItem)
+                    newItem = OTDItem(header: nil, body: nil, imageReference: nil)
+                    print("appending item")
+                }
+                newItem.header = substr
+                print("filling header orange")
+            }
+                    
+            
+        }
+        
+        
+//        for _ in 0..<(blues.count + oranges.count) {
+//            if (blues[b].location < oranges[o].location && b < blues.count) {
+//                if (newItem.body == nil ) {
+//                    let section: String = extractSection(from: text, with: blues[b]) ?? "nil"
+//                    newItem.body = section
+//                    print("added body: \(section)")
+//                    b += 1
+//                } else if (!(blues[b].location > oranges[o].location && o < oranges.count)) {
+//                    items.append(newItem)
+//                    newItem = OTDItem(header: nil, body: nil, imageReference: nil)
+//                    print("added item")
+//                }
+//            }
+//            if (blues[b].location > oranges[o].location && o < oranges.count){
+//                if (newItem.header == nil ) {
+//                    let section: String = extractSection(from: text, with: oranges[o]) ?? "nil"
+//                    newItem.header = section
+//                    print("added header: \(section)")
+//                    o += 1
+//                } else if (!(blues[b].location < oranges[o].location && o < blues.count)) {
+//                    items.append(newItem)
+//                    newItem = OTDItem(header: nil, body: nil, imageReference: nil)
+//                    print("added item")
+//                }
+//            }
+//        }
+        
+        if (newItem.header != nil || newItem.body != nil) {
+            items.append(newItem)
+        }
+        
+        for item in items {
+            viewModel.addItem(item: item)
+        }
+    }
+    
 }
+
+
+
+
+
 
 // MARK: - CustomTextEditor with Attributed Text Support
 
@@ -868,10 +991,10 @@ class ItemParser {
         
         
         
-        print("made \(newDelims.count) delimiters")
-        for d in newDelims {
-            d.printDel()
-        }
+//        print("made \(newDelims.count) delimiters")
+//        for d in newDelims {
+//            d.printDel()
+//        }
         return newDelims
     }
     
@@ -889,7 +1012,7 @@ class ItemParser {
             var catIndex = 0
             var pos = candidateStart
             
-            print("Trying candidate start at index \(candidateStart)...")
+//            print("Trying candidate start at index \(candidateStart)...")
             
             // Process each expected category in the delimiter pattern
             while catIndex < pattern.count && pos < textCount {
@@ -907,13 +1030,13 @@ class ItemParser {
                     
                     // If previous is letter, skip both whitespace and punctuation.
                     if prevCat == .letter && (currentCat == .whitespace || currentCat == .punctuation) {
-                        print("Skipping exception character '\(currentChar)' at pos \(pos) (whitespace/punctuation after letter)")
+//                        print("Skipping exception character '\(currentChar)' at pos \(pos) (whitespace/punctuation after letter)")
                         pos += 1
                         continue
                     }
                     // If previous is punctuation, skip whitespace.
                     else if prevCat == .punctuation && currentCat == .whitespace {
-                        print("Skipping exception character '\(currentChar)' at pos \(pos) (whitespace after punctuation)")
+//                        print("Skipping exception character '\(currentChar)' at pos \(pos) (whitespace after punctuation)")
                         pos += 1
                         continue
                     }
@@ -928,11 +1051,11 @@ class ItemParser {
                 let currentCat = ItemParser.catOf(currentChar)
                 
                 if currentCat != neededCat {
-                    print("Mismatch at pos \(pos): found '\(currentChar)' (\(currentCat)) but expected \(neededCat)")
+//                    print("Mismatch at pos \(pos): found '\(currentChar)' (\(currentCat)) but expected \(neededCat)")
                     break
                 }
                 
-                print("Matched expected character '\(currentChar)' at pos \(pos) with category \(neededCat)")
+//                print("Matched expected character '\(currentChar)' at pos \(pos) with category \(neededCat)")
                 pos += 1
                 
                 // Consume the entire run of characters matching neededCat.
@@ -943,18 +1066,18 @@ class ItemParser {
                     let runCat = ItemParser.catOf(runChar)
                     
                     if runCat == neededCat {
-                        print("Consuming '\(runChar)' at pos \(pos) as part of run for \(neededCat)")
+//                        print("Consuming '\(runChar)' at pos \(pos) as part of run for \(neededCat)")
                         lastValidCat = runCat
                         pos += 1
                     }
                     // Exception: if the run's last valid char was letter, skip whitespace or punctuation.
                     else if lastValidCat == .letter && (runCat == .whitespace || runCat == .punctuation) {
-                        print("Skipping exception character '\(runChar)' at pos \(pos) after letter in run")
+//                        print("Skipping exception character '\(runChar)' at pos \(pos) after letter in run")
                         pos += 1
                     }
                     // Exception: if the last valid char was punctuation, skip whitespace.
                     else if lastValidCat == .punctuation && runCat == .whitespace {
-                        print("Skipping exception character '\(runChar)' at pos \(pos) after punctuation in run")
+//                        print("Skipping exception character '\(runChar)' at pos \(pos) after punctuation in run")
                         pos += 1
                     }
                     else {
@@ -977,21 +1100,20 @@ class ItemParser {
                     }
                 }
                 if allOptional {
-                    print("Reached end-of-text; remaining expected categories are optional. " +
-                          "Delimiter match accepted from index \(candidateStart) to \(pos)")
+//                    print("Reached end-of-text; remaining expected categories are optional. " + "Delimiter match accepted from index \(candidateStart) to \(pos)")
                     return (candidateStart, pos)
                 }
             }
             
             if catIndex == pattern.count {
-                print("Delimiter match found from index \(candidateStart) to \(pos)")
+//                print("Delimiter match found from index \(candidateStart) to \(pos)")
                 return (candidateStart, pos)
             }
             
             candidateStart += 1
         }
         
-        print("No delimiter match found.")
+//        print("No delimiter match found.")
         return nil
     }
     
@@ -1027,7 +1149,7 @@ class ItemParser {
                     let highlightLen = delimStart - pos
                     let highlightRange = NSRange(location: pos, length: highlightLen)
                     newHighlights.append((highlightRange, highlightType))
-                    print("added highlight of type \(highlightType)")
+//                    print("added highlight of type \(highlightType)")
 
                 }
                 // Now skip the delimiter’s match
@@ -1037,7 +1159,7 @@ class ItemParser {
                 let highlightLen = text.count - pos
                 let highlightRange = NSRange(location: pos, length: highlightLen)
                 newHighlights.append((highlightRange, highlightType))
-                print("added highlight of type \(highlightType)")
+//                print("added highlight of type \(highlightType)")
                 pos = text.count
             }
             
@@ -1047,15 +1169,10 @@ class ItemParser {
         }
         
         // Add newly formed highlights to `orderedHighlights`.
-        orderedHighlights.append(contentsOf: newHighlights)
+        orderedHighlights = newHighlights
         // Re-sort by location, in case you want them in ascending index order:
         orderedHighlights.sort { $0.0.location < $1.0.location }
         
         rebuildBluesAndOranges()
-    }
-    
-    public func makeItems() -> [OTDItem] {
-        let items: [OTDItem] = []
-        return items
     }
 }

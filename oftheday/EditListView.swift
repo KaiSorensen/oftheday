@@ -105,7 +105,7 @@ struct EditListView: View {
                     }
                 }
                 .sheet(isPresented: $showParser)  {
-                    ParserView(isPresented: $showParser)
+                    ParserView(isPresented: $showParser, viewModel: viewModel)
                 }
                 .sheet(isPresented: $showListImages) {
                     ListImagesView(
