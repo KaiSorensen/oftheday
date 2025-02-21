@@ -1,9 +1,7 @@
 import SwiftUI
 
-struct CardView: View {
-    var isListEmpty: Bool
-    let item: OTDItem
-    let imageRef: String?
+struct ItemView: View {
+    @Binding var item: OTDItem?
     
     // Tracks the expanded (full-screen) state
     @State private var showOpenCard: Bool = false
@@ -11,29 +9,29 @@ struct CardView: View {
     var body: some View {
         ZStack {
             // Background
-            if !isListEmpty {
+            if item != nil {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(UIColor.secondarySystemBackground))
                     .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 4)
                 
-                if let imageRef = item.imageReference, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 250) // Ensure it only takes the lower portion of the card
-                        .clipped()
-                } else if let imageRef = imageRef, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 250) // Ensure it only takes the lower portion of the card
-                        .clipped()
-                } 
+//                if let imageRef = item.imageReference, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
+//                    Image(uiImage: uiImage)
+//                        .resizable()
+//                        .scaledToFill()
+//                        .frame(height: 250) // Ensure it only takes the lower portion of the card
+//                        .clipped()
+//                } else if let imageRef = imageRef, let uiImage = ImageTable.imageTable.getImage(byID: imageRef) {
+//                    Image(uiImage: uiImage)
+//                        .resizable()
+//                        .scaledToFill()
+//                        .frame(height: 250) // Ensure it only takes the lower portion of the card
+//                        .clipped()
+//                } 
                 
                 VStack {
                     // Title in top-left
                     HStack {
-                        Text(item.header ?? "")
+                        Text(item!.header ?? "")
                             .font(.system(size: 40, weight: .bold))
                             .foregroundColor(.primary)
                             .padding(.top, 16)
@@ -45,7 +43,7 @@ struct CardView: View {
                     Spacer()
                     
                     // Body in the center
-                    Text(item.body ?? "")
+                    Text(item!.body ?? "")
                         .font(.body)
                         .multilineTextAlignment(.center)
                         .foregroundColor(.primary)
@@ -65,11 +63,11 @@ struct CardView: View {
             }
         }
         // Present the fullscreen view when showOpenCard is true
-        .fullScreenCover(isPresented: $showOpenCard) {
-            OpenCardView(isPresented: $showOpenCard, item: item, imageRef: imageRef)
-        }
-        .onTapGesture {
-            if (!isListEmpty) {showOpenCard = true}
-        }
+//        .fullScreenCover(isPresented: $showOpenCard) {
+//            OpenCardView(isPresented: $showOpenCard, item: item, imageRef: imageRef)
+//        }
+//        .onTapGesture {
+//            if (!isListEmpty) {showOpenCard = true}
+//        }
     }
 }

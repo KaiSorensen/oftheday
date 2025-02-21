@@ -1,50 +1,50 @@
 import SwiftUI
 import Combine
 
-
-// MARK: - Main Content View
-
 struct ContentView: View {
-    @EnvironmentObject var viewModel: OTDViewModel
+    @EnvironmentObject var userModel: OTDUserModel
+    @State private var selectedTab: Int = 1
+    @State private var showLogin: Bool = false
     
-    // State to show/hide overlays
-    @State private var showWidgetSettings = false
-    @State private var showMainMenu = false
     
     var body: some View {
-        NavigationView {
-            HomeView(
-                showWidgetSettings: $showWidgetSettings,
-                showMainMenu: $showMainMenu
-            )
-            .navigationBarHidden(true) // We'll manage our own top bar
-        }
-        .overlay(
-            // Widget settings overlay
-            ZStack {
-                if showWidgetSettings {
-                    SettingsOverlay(showOverlay: $showWidgetSettings)
+        TabView(selection: $selectedTab) {
+            SettingsOverlay(showOverlay: .constant(false))
+                .tabItem {
+                    Image(systemName: "gearshape.fill")
+                    Text("Widgets")
                 }
-            }
-        )
-        .overlay(
-            // Main menu overlay
-            ZStack {
-                if showMainMenu {
-                    ListManagementOverlay(viewModel: viewModel, showOverlay: $showMainMenu)
+                .tag(0)
+            TodayView(userModel: userModel)
+                .tabItem {
+                    Image(systemName: "house.fill")
+                    Text("Today")
                 }
-            }
-        )
-        .onReceive(NotificationCenter.default.publisher(for: .didReceiveOTDNotification)) { notif in
-            guard let userInfo = notif.userInfo,
-                  let listUUID = userInfo["listUUID"] as? UUID,
-                  let itemUUID = userInfo["itemUUID"] as? UUID else {
-                      return
-                  }
-            // Now tell the ViewModel to open that list and item
-            viewModel.openListItem(listUUID: listUUID, itemUUID: itemUUID)
+                .tag(1)
+            ListManagementView(userModel: userModel)
+                .tabItem {
+                    Image(systemName: "list.bullet")
+                    Text("Lists")
+                }
+                .tag(2)
         }
+        .onAppear {
+            // If no user is logged in, present the LoginView.
+            if userModel.currentUser == nil {
+                showLogin = true
+            }
+        }
+        .sheet(isPresented: $showLogin) {
+            LoginView(userModel: _userModel, showLogin: $showLogin)
+        }
+//        .onReceive(NotificationCenter.default.publisher(for: .didReceiveOTDNotification)) { notif in
+//            guard let userInfo = notif.userInfo,
+//                  let listUUID = userInfo["listUUID"] as? UUID,
+//                  let itemUUID = userInfo["itemUUID"] as? UUID else {
+//                      return
+//                  }
+//            listsModel.openListItem(listUUID: listUUID, itemUUID: itemUUID)
+//            selectedTab = 2
+//        }
     }
 }
-
-

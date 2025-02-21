@@ -174,7 +174,7 @@ class ImageTable {
     
     /// Decrements the reference count for a given image, and removes it if it has no more references.
     /// - Parameter imageID: The unique identifier of the image.
-    func decrementReference(for imageID: String) {
+    func removeImage(for imageID: String) {
         guard let count = referenceCounts[imageID] else {
             print("Image ID not found.")
             return

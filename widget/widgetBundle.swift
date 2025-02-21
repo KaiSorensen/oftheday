@@ -1,18 +1,18 @@
+////
+////  widgetBundle.swift
+////  widget
+////
+////  Created by Kai Sorensen on 2/16/25.
+////
 //
-//  widgetBundle.swift
-//  widget
+//import WidgetKit
+//import SwiftUI
 //
-//  Created by Kai Sorensen on 2/16/25.
-//
-
-import WidgetKit
-import SwiftUI
-
-@main
-struct widgetBundle: WidgetBundle {
-    var body: some Widget {
-        OTDWidget()
-        widgetControl()
-//        widgetLiveActivity()
-    }
-}
+//@main
+//struct widgetBundle: WidgetBundle {
+//    var body: some Widget {
+//        OTDWidget()
+//        widgetControl()
+////        widgetLiveActivity()
+//    }
+//}

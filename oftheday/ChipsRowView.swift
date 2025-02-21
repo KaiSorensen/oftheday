@@ -3,35 +3,47 @@ import SwiftUI
 // MARK: - Chips Row View
 
 struct ChipsRowView: View {
-    @Binding var selectedIndex: Int
-    let lists: [OTDList]
+    @ObservedObject var userModel: OTDUserModel
+    let lists: [OTDListMetadata]
+    @Binding var listModel: OTDListModel?
+    @Binding var currentItem: OTDItem?
     
+    @State private var showListView: Bool = false
+
     var body: some View {
         ScrollViewReader { scrollProxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
                     Spacer()
                     HStack {
-                        ForEach(Array(lists.enumerated()), id: \.offset) { index, list in
-                            if list.isVisible {
+                        ForEach(lists) { meta in
+                            if meta.today {
                                 Button(action: {
-                                    selectedIndex = index
-                                    withAnimation {
-                                        scrollProxy.scrollTo(index, anchor: .center)
+                                    if let currentList = listModel, currentList.metadata.id == meta.id {
+                                        // Chip pressed for the already selected list
+                                        showListView = true
+                                    } else {
+                                        let newListModel = OTDListModel(metadata: meta)
+                                        listModel = newListModel
+                                        userModel.setCurrentList(meta.id)
+                                        currentItem = newListModel.getCurrentItem()
+                                        withAnimation {
+                                            scrollProxy.scrollTo(meta.id, anchor: .center)
+                                        }
                                     }
                                 }) {
-                                    Text(list.title)
+                                    Text(meta.title)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
                                         .background(
                                             RoundedRectangle(cornerRadius: 16)
-                                                .fill(selectedIndex == index ?
+                                                .fill(meta.id == listModel?.metadata.id ?
                                                       Color.blue.opacity(0.2) :
-                                                        Color.gray.opacity(0.2))
+                                                      Color.gray.opacity(0.2))
                                         )
                                 }
-                                .foregroundColor(selectedIndex == index ? .blue : .primary)
-                                .id(index)
+                                .foregroundColor(meta.id == listModel?.metadata.id ? .blue : .primary)
+                                .id(meta.id) // Assign an ID for scroll tracking
                             }
                         }
                     }
@@ -40,10 +52,19 @@ struct ChipsRowView: View {
                 .frame(minWidth: UIScreen.main.bounds.width)
             }
             .frame(height: 40) // Constrained height
-            .onChange(of: selectedIndex) { oldValue, newValue in
-                // Scroll to the new index whenever selectedIndex changes
-                withAnimation {
-                    scrollProxy.scrollTo(newValue, anchor: .center)
+            .onChange(of: listModel?.metadata.id) { _, newId in
+                if let newId = newId {
+                    withAnimation {
+                        scrollProxy.scrollTo(newId, anchor: .center)
+                    }
+                }
+            }
+            // Present the EditListView as a full screen cover when needed
+            .fullScreenCover(isPresented: $showListView) {
+                if let listModel = listModel {
+                    EditListView(listModel: listModel, isPresented: $showListView)
+                        // Optionally, you can add a dismiss button within the EditListView
+                        // or use an environment dismiss action.
                 }
             }
         }
