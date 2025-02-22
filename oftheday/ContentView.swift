@@ -9,15 +9,15 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            SettingsOverlay(showOverlay: .constant(false))
+            SearchView(userModel: userModel)
                 .tabItem {
-                    Image(systemName: "gearshape.fill")
-                    Text("Widgets")
+                    Image(systemName: "magnifyingglass")
+                    Text("Search")
                 }
                 .tag(0)
             TodayView(userModel: userModel)
                 .tabItem {
-                    Image(systemName: "house.fill")
+                    Image(systemName: "calendar")
                     Text("Today")
                 }
                 .tag(1)
